@@ -94,4 +94,18 @@ def generate(spec, out_dir, dry_run=False):
                        ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '.pytest_cache'))
         print(f"  ✓ Copied Core SDK: {frmk_dest}")
 
+    # Generate frmk/setup.py and frmk/pyproject.toml
+    if not dry_run:
+        frmk_setup_files = [
+            ("frmk/setup.py.j2", frmk_dest / "setup.py"),
+            ("frmk/pyproject.toml.j2", frmk_dest / "pyproject.toml"),
+        ]
+
+        for template_name, output_file in frmk_setup_files:
+            if dry_run:
+                print(f"  Would generate: {output_file}")
+            else:
+                engine.render_to_file(template_name, context, output_file)
+                print(f"  ✓ Generated: {output_file}")
+
     print(f"[scaffold] ✓ Scaffold generation complete")

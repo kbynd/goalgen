@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "goalgen-frmk"
+version = "0.1.0"
+description = "GoalGen Framework - Core SDK for generated agent projects"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "GoalGen", email = "noreply@goalgen.dev"}
+]
+keywords = ["goalgen", "langgraph", "agents", "ai", "azure", "openai", "code-generation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "langchain>=0.1.0",
+    "langchain-core>=0.1.0",
+    "langchain-openai>=0.0.5",
+    "langgraph>=0.0.40",
+    "azure-identity>=1.15.0",
+    "azure-keyvault-secrets>=4.7.0",
+    "azure-cosmos>=4.5.0",
+    "azure-ai-resources>=1.0.0b1",
+    "httpx>=0.25.0",
+    "aiohttp>=3.9.0",
+    "websockets>=12.0",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+conversation = [
+    "azure-ai-language-conversations>=1.1.0",
+]
+monitoring = [
+    "azure-monitor-opentelemetry>=1.0.0",
+    "opentelemetry-api>=1.20.0",
+    "opentelemetry-sdk>=1.20.0",
+]
+
+[project.urls]
+Documentation = "https://goalgen.dev/docs"
+Source = "https://github.com/goalgen/frmk"
+"Bug Reports" = "https://github.com/goalgen/frmk/issues"
+
+[tool.setuptools]
+packages = ["frmk"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
