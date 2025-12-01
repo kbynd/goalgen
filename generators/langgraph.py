@@ -20,22 +20,25 @@ def generate(spec: Dict[str, Any], out_dir: str, dry_run: bool = False):
     Generate LangGraph workflow
 
     Creates:
-    - langgraph/quest_builder.py
-    - langgraph/state_schema.py
-    - langgraph/checkpointer_adapter.py
-    - langgraph/__init__.py
+    - workflow/quest_builder.py
+    - workflow/state_schema.py
+    - workflow/checkpointer_adapter.py
+    - workflow/__init__.py
+
+    Note: Directory renamed from 'langgraph/' to 'workflow/' to avoid
+    naming collision with the installed langgraph package.
     """
 
     print("[langgraph] Generating LangGraph workflow...")
 
     # Setup paths
     out_path = Path(out_dir)
-    langgraph_dir = out_path / "langgraph"
-    agents_dir = langgraph_dir / "agents"
-    evaluators_dir = langgraph_dir / "evaluators"
+    workflow_dir = out_path / "workflow"
+    agents_dir = workflow_dir / "agents"
+    evaluators_dir = workflow_dir / "evaluators"
 
     if not dry_run:
-        langgraph_dir.mkdir(parents=True, exist_ok=True)
+        workflow_dir.mkdir(parents=True, exist_ok=True)
         agents_dir.mkdir(parents=True, exist_ok=True)
         evaluators_dir.mkdir(parents=True, exist_ok=True)
 
@@ -62,7 +65,7 @@ def generate(spec: Dict[str, Any], out_dir: str, dry_run: bool = False):
         files.append(("langgraph/schema_migrations.py.j2", "schema_migrations.py"))
 
     for template_name, output_filename in files:
-        output_path = langgraph_dir / output_filename
+        output_path = workflow_dir / output_filename
 
         if dry_run:
             print(f"[langgraph]   Would write: {output_path}")
@@ -72,7 +75,7 @@ def generate(spec: Dict[str, Any], out_dir: str, dry_run: bool = False):
 
     # Generate __init__.py
     init_content = _generate_init_file()
-    init_file = langgraph_dir / "__init__.py"
+    init_file = workflow_dir / "__init__.py"
 
     if dry_run:
         print(f"[langgraph]   Would write: {init_file}")

@@ -8,9 +8,7 @@ Creates backend-specific checkpointer with StateManager integration
 from typing import Dict, Any, Optional
 import os
 import logging
-from frmk.core.state_manager import create_state_manager
-from frmk.core.tracked_checkpointer import create_tracked_checkpointer
-from langgraph.checkpoint import BaseCheckpointSaver
+from langgraph.checkpoint.memory import MemorySaver
 
 {% if schema_migrations %}
 from .schema_migrations import migrate_state, CURRENT_SCHEMA_VERSION
@@ -18,18 +16,24 @@ from .schema_migrations import migrate_state, CURRENT_SCHEMA_VERSION
 
 logger = logging.getLogger(__name__)
 
-{% if checkpointing_backend == 'cosmos' %}
-from frmk.checkpointers.cosmos_checkpointer import CosmosCheckpointer
-{% elif checkpointing_backend == 'redis' %}
-from frmk.checkpointers.redis_checkpointer import RedisCheckpointer
-{% elif checkpointing_backend == 'blob' %}
-from frmk.checkpointers.blob_checkpointer import BlobCheckpointer
-{% else %}
-from langgraph.checkpoint.memory import MemorySaver
-{% endif %}
+# Fallback imports - use memory checkpointer if frmk modules not available
+try:
+    from frmk.core.state_manager import create_state_manager
+    from frmk.core.tracked_checkpointer import create_tracked_checkpointer
+    {% if checkpointing_backend == 'cosmos' %}
+    from frmk.checkpointers.cosmos_checkpointer import CosmosCheckpointer
+    {% elif checkpointing_backend == 'redis' %}
+    from frmk.checkpointers.redis_checkpointer import RedisCheckpointer
+    {% elif checkpointing_backend == 'blob' %}
+    from frmk.checkpointers.blob_checkpointer import BlobCheckpointer
+    {% endif %}
+    FRMK_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"frmk modules not fully available: {e}. Using MemorySaver fallback.")
+    FRMK_AVAILABLE = False
 
 
-def create_checkpointer(goal_config: Dict[str, Any]) -> BaseCheckpointSaver:
+def create_checkpointer(goal_config: Dict[str, Any]):
     """
     Create checkpointer with StateManager tracking
 
@@ -40,10 +44,20 @@ def create_checkpointer(goal_config: Dict[str, Any]) -> BaseCheckpointSaver:
     2. Create StateManager (handles conversation tracking + metrics)
     3. Wrap with TrackedCheckpointer (intercepts saves)
     4. Return tracked checkpointer to LangGraph
+
+    Supports fallback to MemorySaver for local development.
+    Set USE_MEMORY_CHECKPOINTER=true to use memory checkpointer.
     """
 
     checkpointing_config = goal_config.get("state_management", {}).get("checkpointing", {})
     backend = checkpointing_config.get("backend", "memory")
+
+    # Check if using memory fallback
+    use_memory = os.getenv("USE_MEMORY_CHECKPOINTER", "false").lower() == "true"
+
+    if use_memory or not FRMK_AVAILABLE:
+        logger.info("Using MemorySaver checkpointer (local development mode)")
+        return MemorySaver()
 
     {% if checkpointing_backend == 'cosmos' %}
     # Cosmos DB Checkpointer
@@ -54,7 +68,8 @@ def create_checkpointer(goal_config: Dict[str, Any]) -> BaseCheckpointSaver:
     container = cosmos_config.get("container", "checkpoints")
 
     if not endpoint:
-        raise ValueError("Cosmos endpoint not configured")
+        logger.warning("Cosmos endpoint not configured, falling back to MemorySaver")
+        return MemorySaver()
 
     underlying_checkpointer = CosmosCheckpointer(
         endpoint=endpoint,
@@ -69,7 +84,8 @@ def create_checkpointer(goal_config: Dict[str, Any]) -> BaseCheckpointSaver:
     connection_string = redis_config.get("connection_string") or os.getenv("REDIS_CONNECTION_STRING")
 
     if not connection_string:
-        raise ValueError("Redis connection string not configured")
+        logger.warning("Redis connection string not configured, falling back to MemorySaver")
+        return MemorySaver()
 
     underlying_checkpointer = RedisCheckpointer(
         connection_string=connection_string,
@@ -84,7 +100,8 @@ def create_checkpointer(goal_config: Dict[str, Any]) -> BaseCheckpointSaver:
     container_name = blob_config.get("container", "{{ goal_id }}-checkpoints")
 
     if not connection_string:
-        raise ValueError("Blob connection string not configured")
+        logger.warning("Blob connection string not configured, falling back to MemorySaver")
+        return MemorySaver()
 
     underlying_checkpointer = BlobCheckpointer(
         connection_string=connection_string,

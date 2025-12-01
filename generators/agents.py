@@ -19,15 +19,15 @@ def generate(spec: Dict[str, Any], out_dir: str, dry_run: bool = False):
     Generate agent implementations
 
     Creates:
-    - langgraph/agents/<agent_name>.py for each agent in spec
-    - langgraph/agents/__init__.py with all agent imports
+    - workflow/agents/<agent_name>.py for each agent in spec
+    - workflow/agents/__init__.py with all agent imports
     """
 
     print("[agents] Generating agent implementations...")
 
     # Setup paths
     out_path = Path(out_dir)
-    agents_dir = out_path / "langgraph" / "agents"
+    agents_dir = out_path / "workflow" / "agents"
 
     if not dry_run:
         agents_dir.mkdir(parents=True, exist_ok=True)

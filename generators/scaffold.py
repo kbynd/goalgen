@@ -47,8 +47,8 @@ def generate(spec, out_dir, dry_run=False):
     directories = [
         'infra/modules',
         'orchestrator/app',
-        'langgraph/agents',
-        'langgraph/evaluators',
+        'workflow/agents',
+        'workflow/evaluators',
         'tools',
         'prompts',
         'assets/images',
