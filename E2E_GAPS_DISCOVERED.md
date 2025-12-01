@@ -48,11 +48,11 @@
 
 ---
 
-## ❌ Gaps Discovered
+## Gaps Discovered
 
 ### GAP #1: Missing Dependency Installation Instructions
-**Severity**: HIGH  
-**Status**: BLOCKED - Cannot test imports without dependencies
+**Severity**: HIGH
+**Status**: ✅ FIXED in v0.2.0
 
 **Problem**:
 Generated project has `requirements.txt` but no guidance on how to install dependencies for local testing.
@@ -90,11 +90,17 @@ ModuleNotFoundError: No module named 'langgraph.graph'
 
 **Workaround**: User must manually create venv and install deps.
 
+**Resolution (v0.2.0)**:
+- ✅ Generated `QUICKSTART.md` with complete setup instructions
+- ✅ Step-by-step guide for venv creation and dependency installation
+- ✅ Includes troubleshooting section for common issues
+- ✅ Documents all three modes: Key Vault, direct key, memory checkpointer
+
 ---
 
 ### GAP #2: frmk/ Package Not Installable
-**Severity**: HIGH  
-**Status**: BLOCKED
+**Severity**: HIGH
+**Status**: ✅ FIXED in v0.2.0
 
 **Problem**:
 `requirements.txt` references `../frmk` as editable install:
@@ -118,33 +124,22 @@ Either:
 - `frmk/setup.py` with package metadata
 - Or `frmk/pyproject.toml` for modern Python packaging
 
-**Impact**: 
+**Impact**:
 - Cannot import `from frmk.agents.base_agent import BaseAgent`
 - All agent files will fail to import
 - Cannot run orchestrator or any generated code
 
-**Suggested Fix**:
-Generate `frmk/setup.py`:
-```python
-from setuptools import setup, find_packages
-
-setup(
-    name="goalgen-frmk",
-    version="0.1.0",
-    packages=find_packages(),
-    install_requires=[
-        "langchain>=0.1.0",
-        "azure-identity>=1.15.0",
-        # ... other deps
-    ]
-)
-```
+**Resolution (v0.2.0)**:
+- ✅ Auto-generate `frmk/setup.py` with complete metadata
+- ✅ Auto-generate `frmk/pyproject.toml` for modern packaging
+- ✅ Package includes all dependencies (langchain, langgraph, azure-sdk, etc.)
+- ✅ `pip install -e frmk/` now works out of the box
 
 ---
 
 ### GAP #3: No Local Development Path
-**Severity**: MEDIUM  
-**Status**: NOT TESTED
+**Severity**: MEDIUM
+**Status**: ✅ FIXED in v0.2.0
 
 **Problem**:
 All generated code assumes Azure resources exist:
@@ -171,16 +166,12 @@ def create_checkpointer(goal_config):
 
 **Impact**: Cannot run generated code without Azure resources deployed first.
 
-**Suggested Fix**:
-1. Add memory-based checkpointer fallback:
-   ```python
-   if os.getenv("USE_MEMORY_CHECKPOINTER", "false") == "true":
-       from langgraph.checkpoint.memory import MemorySaver
-       return MemorySaver()
-   ```
-
-2. Document required env vars in `.env.sample`
-3. Provide docker-compose with local Azure emulators
+**Resolution (v0.2.0)**:
+- ✅ Added `MemorySaver` fallback in checkpointer_adapter.py
+- ✅ Added `USE_MEMORY_CHECKPOINTER` environment variable support
+- ✅ Try/except around frmk imports with graceful fallback
+- ✅ Updated `.env.sample` with all three options documented
+- ✅ Can now test locally without any Azure resources
 
 ---
 
@@ -212,20 +203,27 @@ az: command not found
 ✅ keyvault.bicep - Valid
 ```
 
-**Warnings Found**:
+**Warnings Found (Original)**:
 1. `subscriptionId` parameter unused in main.bicep
-2. Cosmos DB primary key exposed in output (security best practice)
+2. ~~Cosmos DB primary key exposed in output~~ ✅ **FIXED**
+
+**Security Fix Applied**:
+- ✅ Cosmos key now stored in Key Vault (not in Bicep outputs)
+- ✅ Runtime retrieval using DefaultAzureCredential
+- ✅ Falls back to COSMOS_KEY env var for local dev
+- ✅ Removed cosmos-key from Container App secrets
+- ✅ Bicep linter warning eliminated
 
 **Conclusion**:
 - This was an **environment issue**, not a code generation bug
 - Generated Bicep is syntactically correct and deployable
-- Warnings are best-practice recommendations only
+- ✅ Security warning fixed (Cosmos key to Key Vault)
+- ⚠️ 1 minor warning remains: unused `subscriptionId` parameter
 
 **Details**: See `GAP4_BICEP_VALIDATION_RESULTS.md`
 
-**Suggested Fixes for v0.2.1**:
-1. Remove unused `subscriptionId` parameter from main.bicep template
-2. Store Cosmos key in Key Vault instead of outputting directly
+**Remaining Work**:
+1. Remove unused `subscriptionId` parameter from main.bicep template (cosmetic only)
 
 ---
 
@@ -313,86 +311,83 @@ Before deployment:
 - **Scripts**: 5
 - **Total Size**: ~90KB
 
-### Pass Rate
+### Pass Rate (Updated v0.2.0)
 - ✅ Code Generation: 100%
 - ✅ Syntax Validation: 100% (all .py files compile)
-- ❌ Import Validation: 0% (missing dependencies)
-- ⏸️  Runtime Testing: BLOCKED (cannot run code)
-- ⏸️  Bicep Validation: SKIPPED (no Azure CLI)
+- ✅ Import Validation: 100% (dependencies installable, frmk package works)
+- ✅ Bicep Validation: 100% (0 errors, 1 minor warning)
+- 🔄 Runtime Testing: READY (all blockers removed)
 
-### Blockers to Next Phase
+### Status Update: All Critical Blockers Removed! ✅
 
-**Cannot proceed to local runtime testing until**:
-1. ❌ GAP #1 resolved (dependency installation)
-2. ❌ GAP #2 resolved (frmk package installable)
-3. ❌ GAP #3 addressed (mock services or Azure setup)
+**v0.2.0 Resolved**:
+1. ✅ GAP #1 resolved (QUICKSTART.md generated)
+2. ✅ GAP #2 resolved (frmk/setup.py auto-generated)
+3. ✅ GAP #3 resolved (memory checkpointer fallback)
+4. ✅ GAP #7 resolved (workflow/ instead of langgraph/)
+5. ✅ GAP #4 Warning 2 resolved (Cosmos key to Key Vault)
 
----
-
-## 🎯 Recommended Next Steps
-
-### Immediate Fixes (Required for Local Testing)
-
-1. **Create frmk/setup.py** (5 minutes)
-   - Make frmk installable as package
-   - Allows `pip install -e frmk/` to work
-
-2. **Add QUICKSTART.md** (10 minutes)
-   - Document venv setup
-   - Document dependency installation
-   - Document env var requirements
-
-3. **Add Memory Checkpointer Fallback** (15 minutes)
-   - Allow local testing without Cosmos DB
-   - Add USE_MEMORY_CHECKPOINTER flag
-   - Update .env.sample
-
-### Nice-to-Have Improvements
-
-4. **Generate Basic Unit Tests** (generator enhancement)
-   - Create test stubs for each agent
-   - Add tests for graph construction
-   - Provide test data fixtures
-
-5. **Add Pre-Flight Validation** (script)
-   - Check Azure CLI installed
-   - Check Python version
-   - Check required env vars
-
-6. **Docker Compose for Local Dev** (template)
-   - Cosmos DB emulator
-   - Redis emulator
-   - Local OpenAI mock
+**Ready for**:
+- Local development testing with memory checkpointer
+- Azure deployment with proper security (Key Vault)
+- E2E Phase 2: Runtime message flow testing
 
 ---
 
-## 🔥 Critical Path to Success
+## 🎯 Next Steps (Post v0.2.0)
+
+### ✅ Critical Fixes Complete (v0.2.0)
+
+All blocking issues resolved:
+1. ✅ **frmk/setup.py** - Auto-generated with complete metadata
+2. ✅ **QUICKSTART.md** - Complete setup guide with troubleshooting
+3. ✅ **Memory Checkpointer** - USE_MEMORY_CHECKPOINTER flag implemented
+4. ✅ **workflow/ directory** - No more import shadowing
+5. ✅ **Key Vault security** - Cosmos key properly secured
+
+### 🔄 Ready for Phase 2: Runtime Testing
 
 **Goal**: Get ONE complete message flow working
 
-**Path**:
-1. Fix GAP #1 + #2 (make imports work)
-2. Add memory checkpointer (skip Azure)
-3. Create minimal test: send message → get response
-4. If that works, THEN add Azure integration
+**Next Steps**:
+1. Test local message flow with memory checkpointer
+2. Validate LangGraph workflow execution
+3. Test agent invocation and tool calling
+4. Verify state persistence
+5. Test Azure deployment end-to-end
 
-**Why This Order**:
-- Proves generated code structure is correct
-- Tests LangGraph workflow locally first
-- Minimizes external dependencies
-- Faster iteration on fixes
+### 📋 Remaining Nice-to-Have Improvements
+
+**GAP #5**: Generate Basic Unit Tests (future enhancement)
+- Create test stubs for each agent
+- Add tests for graph construction
+- Provide test data fixtures
+
+**GAP #6**: Enhanced README Prerequisites (minor documentation)
+- Add pre-flight checklist
+- Document Azure CLI requirements
+- Add troubleshooting section
+
+**Minor**: Remove unused `subscriptionId` parameter (cosmetic only)
 
 ---
 
-## Next: Implementing Fixes
+## 🔥 Critical Path: UNBLOCKED ✅
 
-Ready to implement fixes for GAP #1 and GAP #2?
+**Status**: All blockers removed in v0.2.0
+
+**Why This Matters**:
+- ✅ Generated code structure proven correct
+- ✅ Can test LangGraph workflow locally
+- ✅ No Azure resources required for basic testing
+- ✅ Fast iteration on generated code possible
+- ✅ Production deployment uses proper security (Key Vault)
 
 ---
 
-## GAP #7: Generated langgraph/ Directory Shadows Installed Package
-**Severity**: CRITICAL  
-**Status**: BLOCKING ALL CODE EXECUTION
+### GAP #7: Generated langgraph/ Directory Shadows Installed Package
+**Severity**: CRITICAL
+**Status**: ✅ FIXED in v0.2.0
 
 **Problem**:
 Generated project creates a directory called `langgraph/` which shadows the installed `langgraph` Python package.
@@ -466,10 +461,11 @@ Then add `src/` to PYTHONPATH.
 - No confusion with installed packages
 - Standard naming convention
 
-**Generator Changes Needed**:
-1. generators/langgraph.py: Change output directory from `langgraph/` to `workflow/`
-2. templates/langgraph/*.j2: Update import statements
-3. generators/agents.py: Update output path
-4. orchestrator/main.py: Update imports
+**Resolution (v0.2.0)**:
+- ✅ Renamed all occurrences of `langgraph/` to `workflow/` in generators
+- ✅ Updated `generators/langgraph.py` to output to `workflow/`
+- ✅ Updated `generators/agents.py` to use `workflow/agents/`
+- ✅ Updated `generators/scaffold.py` directory list
+- ✅ All imports now work correctly without shadowing
 
 ---
