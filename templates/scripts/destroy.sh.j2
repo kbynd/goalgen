@@ -1,0 +1,27 @@
+#!/bin/bash
+set -e
+
+# Destroy script for {{ goal_id }}
+# Removes all Azure resources
+
+echo "=== Destroying {{ goal_id }} infrastructure ==="
+
+RESOURCE_GROUP=${AZURE_RESOURCE_GROUP:-"{{ goal_id }}-rg"}
+
+# Colors
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+echo -e "${YELLOW}WARNING: This will delete all resources in $RESOURCE_GROUP${NC}"
+echo "Press Ctrl+C to cancel, or Enter to continue..."
+read
+
+echo -e "${RED}Deleting resource group: $RESOURCE_GROUP${NC}"
+az group delete \
+    --name $RESOURCE_GROUP \
+    --yes \
+    --no-wait
+
+echo "Resource group deletion initiated (running in background)"
+echo "Check status with: az group show --name $RESOURCE_GROUP"

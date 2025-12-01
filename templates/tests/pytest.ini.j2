@@ -1,0 +1,28 @@
+[pytest]
+# Pytest configuration for {{ goal_id }}
+
+# Test discovery
+testpaths = tests
+python_files = test_*.py
+python_classes = Test*
+python_functions = test_*
+
+# Output options
+addopts =
+    -v
+    --strict-markers
+    --tb=short
+    --disable-warnings
+
+# Markers
+markers =
+    unit: Unit tests
+    integration: Integration tests
+    migration: Schema migration tests
+    slow: Slow-running tests
+
+# Coverage options (if using pytest-cov)
+# addopts = --cov=langgraph --cov-report=html --cov-report=term
+
+# Async support (if using pytest-asyncio)
+asyncio_mode = auto

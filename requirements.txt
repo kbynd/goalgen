@@ -1,0 +1,66 @@
+# Core dependencies for GoalGen CLI
+Jinja2>=3.1.0
+
+# Note: The following dependencies are for GENERATED code, not for GoalGen itself.
+# Users who run GoalGen only need Jinja2.
+# Users who want to RUN the generated projects need these additional dependencies.
+
+# ============================================================================
+# Dependencies for Generated Projects
+# ============================================================================
+
+# Azure SDK (for generated code)
+azure-cosmos>=4.5.0
+azure-identity>=1.15.0
+azure-monitor-opentelemetry>=1.2.0
+azure-search-documents>=11.4.0
+azure-storage-blob>=12.19.0
+
+# LangChain/LangGraph (for generated workflows)
+langgraph>=0.2.0
+langchain>=0.1.0
+langchain-core>=0.1.0
+langchain-openai>=0.0.5
+
+# Azure AI Foundry integration (for observability/tracing)
+langchain-azure-ai>=0.1.0
+
+# Database drivers (for generated SQL tools)
+sqlalchemy>=2.0.0
+pyodbc>=5.0.0              # Azure SQL
+psycopg2-binary>=2.9.0     # PostgreSQL
+pymysql>=1.1.0             # MySQL
+
+# Vector DB clients (for generated VectorDB tools)
+pinecone-client>=3.0.0
+weaviate-client>=4.0.0
+qdrant-client>=1.7.0
+chromadb>=0.4.0
+
+# API framework (for generated orchestrator)
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.5.0
+python-multipart>=0.0.6
+
+# OpenAI (for generated agents)
+openai>=1.0.0
+
+# HTTP clients (for generated tools)
+httpx>=0.26.0
+aiohttp>=3.9.0
+
+# Testing (for generated test suites)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+
+# Azure ML SDK (for AI Foundry integration in generated code)
+azure-ai-ml>=1.12.0
+
+# Redis (for generated Redis checkpointer)
+redis>=5.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+pyyaml>=6.0.0

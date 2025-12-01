@@ -1,0 +1,61 @@
+{
+  "id": "travel_planning",
+  "title": "Travel Planning Assistant",
+  "description": "Multi-agent travel planning assistant that helps users research and plan trips",
+  "version": "1.0.0",
+
+  "agents": {
+    "supervisor_agent": {
+      "kind": "supervisor",
+      "policy": "simple_router",
+      "tools": [],
+      "max_loop": 10,
+      "llm_config": {"model": "gpt-4", "temperature": 0.7}
+    },
+    "flight_agent": {
+      "kind": "llm_agent",
+      "tools": ["flight_api"],
+      "max_loop": 3,
+      "llm_config": {"model": "gpt-4", "temperature": 0.5, "max_tokens": 1500}
+    }
+  },
+
+  "tools": {
+    "flight_api": {
+      "type": "http",
+      "spec": {"url": "${FLIGHT_API_URL}/search", "method": "POST", "timeout": 30}
+    }
+  },
+
+  "tasks": [
+    {"id": "research_flights", "type": "task", "agent": "flight_agent", "tools": ["flight_api"]}
+  ],
+
+  "ux": {
+    "teams": {"enabled": true},
+    "webchat": {"enabled": true},
+    "api": {"enabled": true}
+  },
+
+  "state_management": {
+    "checkpointing": {"backend": "cosmos"},
+    "threads": {"id_generation": {"strategy": "uuid"}},
+    "serialization": {"format": "json", "compression": {"enabled": true, "algorithm": "gzip"}}
+  },
+
+  "api": {
+    "versioning": {"current_version": "v1", "base_path": "/api/{version}/goal/{goal_id}"}
+  },
+
+  "authentication": {
+    "backend": {"type": "managed_identity", "identity_type": "system_assigned"},
+    "frontend": {"type": "entra_id"}
+  },
+
+  "deployment": {
+    "monitoring": {"app_insights": true, "log_analytics": true},
+    "environments": {
+      "dev": {"resource_group": "rg-travel-planning-dev"}
+    }
+  }
+}

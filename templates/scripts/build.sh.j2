@@ -1,0 +1,48 @@
+#!/bin/bash
+set -e
+
+# Build script for {{ goal_id }}
+# Builds Docker images for orchestrator and packages Azure Functions
+
+echo "=== Building {{ goal_id }} ==="
+
+REGISTRY=${AZURE_CONTAINER_REGISTRY:-""}
+IMAGE_TAG=${IMAGE_TAG:-"latest"}
+GOAL_ID="{{ goal_id }}"
+
+# Colors for output
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}Step 1: Building Orchestrator Docker image${NC}"
+docker build \
+    -t ${GOAL_ID}-api:${IMAGE_TAG} \
+    -f orchestrator/Dockerfile \
+    .
+
+if [ -n "$REGISTRY" ]; then
+    echo -e "${BLUE}Step 2: Tagging for ACR${NC}"
+    docker tag ${GOAL_ID}-api:${IMAGE_TAG} ${REGISTRY}/${GOAL_ID}-api:${IMAGE_TAG}
+    
+    echo -e "${BLUE}Step 3: Pushing to ACR${NC}"
+    docker push ${REGISTRY}/${GOAL_ID}-api:${IMAGE_TAG}
+    
+    echo -e "${GREEN}✓ Image pushed: ${REGISTRY}/${GOAL_ID}-api:${IMAGE_TAG}${NC}"
+else
+    echo -e "${GREEN}✓ Image built locally: ${GOAL_ID}-api:${IMAGE_TAG}${NC}"
+    echo "   Set AZURE_CONTAINER_REGISTRY to push to ACR"
+fi
+
+{% if tools %}
+echo -e "${BLUE}Step 4: Packaging Azure Functions${NC}"
+{% for tool_name in tools.keys() %}
+cd tools/{{ tool_name }}
+echo "  Packaging {{ tool_name }}..."
+zip -r ../../{{ tool_name }}.zip . -x "*.pyc" -x "__pycache__/*"
+cd ../..
+echo -e "${GREEN}✓ {{ tool_name }}.zip created${NC}"
+{% endfor %}
+{% endif %}
+
+echo -e "${GREEN}=== Build Complete ===${NC}"

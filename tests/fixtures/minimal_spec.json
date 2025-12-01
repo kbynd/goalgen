@@ -1,0 +1,11 @@
+{
+  "id": "minimal_test",
+  "title": "Minimal Test Goal",
+  "version": "1.0.0",
+  "agents": {
+    "supervisor": {
+      "kind": "supervisor",
+      "policy": "simple_router"
+    }
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "id": "travel_planning",
+  "title": "Travel Planning Assistant",
+  "description": "Multi-agent travel planning assistant that helps users research and plan trips",
+  "version": "2.0.0",
+
+  "schema_version": 2,
+  "schema_migrations": {
+    "1_to_2": {
+      "description": "Added departure_date and budget fields for enhanced trip planning",
+      "migration": "set_default",
+      "added_fields": ["departure_date", "budget"],
+      "default_values": {
+        "departure_date": null,
+        "budget": null
+      }
+    }
+  },
+
+  "agents": {
+    "supervisor_agent": {
+      "kind": "supervisor",
+      "policy": "simple_router",
+      "tools": [],
+      "max_loop": 10,
+      "llm_config": {"model": "gpt-4", "temperature": 0.7}
+    },
+    "flight_agent": {
+      "kind": "llm_agent",
+      "tools": ["flight_api"],
+      "max_loop": 3,
+      "llm_config": {"model": "gpt-4", "temperature": 0.5, "max_tokens": 1500}
+    }
+  },
+
+  "tools": {
+    "flight_api": {
+      "type": "http",
+      "description": "Search for flight options",
+      "spec": {"url": "${FLIGHT_API_URL}/search", "method": "POST", "timeout": 30}
+    }
+  },
+
+  "tasks": [
+    {"id": "research_flights", "type": "task", "agent": "flight_agent", "tools": ["flight_api"]}
+  ],
+
+  "ux": {
+    "teams": {"enabled": true},
+    "webchat": {"enabled": true},
+    "api": {"enabled": true}
+  },
+
+  "state_management": {
+    "checkpointing": {
+      "backend": "cosmos",
+      "configuration": {
+        "cosmos": {
+          "database": "travel_planning_db",
+          "container": "checkpoints"
+        }
+      }
+    },
+    "threads": {"id_generation": {"strategy": "uuid"}},
+    "serialization": {"format": "json", "compression": {"enabled": true, "algorithm": "gzip"}},
+    "state": {
+      "schema": {
+        "context_fields": [
+          "destination",
+          "departure_date",
+          "return_date",
+          "budget",
+          "travelers"
+        ],
+        "descriptions": {
+          "destination": "Travel destination city or country",
+          "departure_date": "Departure date in YYYY-MM-DD format (added in v2)",
+          "return_date": "Return date in YYYY-MM-DD format",
+          "budget": "Maximum budget in USD (added in v2)",
+          "travelers": "Number of travelers"
+        }
+      }
+    }
+  },
+
+  "api": {
+    "versioning": {"current_version": "v1", "base_path": "/api/{version}/goal/{goal_id}"}
+  },
+
+  "authentication": {
+    "type": "azure_ad",
+    "tenant_id": "${AZURE_TENANT_ID}",
+    "client_id": "${AZURE_CLIENT_ID}",
+    "required_roles": ["TravelPlanner.User"]
+  },
+
+  "deployment": {
+    "platform": "azure",
+    "targets": ["containerapps", "functions"],
+    "resource_group": "rg-travel-planning",
+    "region": "eastus"
+  }
+}

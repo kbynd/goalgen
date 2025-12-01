@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+"""
+Batch Checkpoint Migration Script
+
+Migrates all existing checkpoints from older schema versions to current version.
+Run this as a background job after deploying schema changes.
+
+Usage:
+    python scripts/migrate_checkpoints.py [--dry-run] [--batch-size 100]
+
+Environment Variables:
+    {% if checkpointing_backend == 'cosmos' %}
+    COSMOS_ENDPOINT - Cosmos DB endpoint
+    COSMOS_KEY - Cosmos DB key (or use Managed Identity)
+    {% elif checkpointing_backend == 'redis' %}
+    REDIS_CONNECTION_STRING - Redis connection string
+    {% endif %}
+"""
+
+import sys
+import os
+import asyncio
+import logging
+from pathlib import Path
+from typing import Dict, Any
+import argparse
+
+# Add parent directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from langgraph.schema_migrations import migrate_state, CURRENT_SCHEMA_VERSION
+
+{% if checkpointing_backend == 'cosmos' %}
+from azure.cosmos.aio import CosmosClient
+from azure.identity.aio import DefaultAzureCredential
+{% elif checkpointing_backend == 'redis' %}
+import redis.asyncio as redis
+{% endif %}
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+
+async def migrate_all_checkpoints(dry_run: bool = False, batch_size: int = 100):
+    """
+    Migrate all checkpoints to current schema version
+
+    Args:
+        dry_run: If True, don't actually update checkpoints
+        batch_size: Number of checkpoints to migrate before logging progress
+    """
+
+    {% if checkpointing_backend == 'cosmos' %}
+    # Cosmos DB migration
+    endpoint = os.getenv("COSMOS_ENDPOINT")
+    key = os.getenv("COSMOS_KEY")
+
+    if not endpoint:
+        raise ValueError("COSMOS_ENDPOINT environment variable required")
+
+    # Use Managed Identity if no key provided
+    if key:
+        client = CosmosClient(endpoint, credential=key)
+    else:
+        credential = DefaultAzureCredential()
+        client = CosmosClient(endpoint, credential=credential)
+
+    database = client.get_database_client("{{ goal_id }}_db")
+    container = database.get_container_client("checkpoints")
+
+    # Query checkpoints with old schema version
+    query = """
+        SELECT * FROM c
+        WHERE c.channel_values.schema_version < @current_version
+        OR NOT IS_DEFINED(c.channel_values.schema_version)
+    """
+    parameters = [
+        {"name": "@current_version", "value": CURRENT_SCHEMA_VERSION}
+    ]
+
+    logger.info(f"Querying checkpoints with schema version < {CURRENT_SCHEMA_VERSION}")
+
+    items = container.query_items(
+        query=query,
+        parameters=parameters,
+        enable_cross_partition_query=True
+    )
+
+    migrated_count = 0
+    error_count = 0
+
+    async for item in items:
+        try:
+            # Get state from checkpoint
+            state = item.get("channel_values", {})
+            old_version = state.get("schema_version", 1)
+
+            # Migrate
+            migrated_state = migrate_state(state)
+
+            # Update checkpoint
+            item["channel_values"] = migrated_state
+
+            if not dry_run:
+                # Write back to Cosmos
+                await container.upsert_item(item)
+
+            migrated_count += 1
+
+            if migrated_count % batch_size == 0:
+                logger.info(f"Migrated {migrated_count} checkpoints...")
+
+            logger.debug(
+                f"Migrated checkpoint {item.get('id')} "
+                f"from v{old_version} to v{CURRENT_SCHEMA_VERSION}"
+            )
+
+        except Exception as e:
+            error_count += 1
+            logger.error(f"Failed to migrate checkpoint {item.get('id')}: {e}")
+
+    logger.info(
+        f"Migration complete: {migrated_count} migrated, {error_count} errors "
+        f"{'(DRY RUN)' if dry_run else ''}"
+    )
+
+    await client.close()
+
+    {% elif checkpointing_backend == 'redis' %}
+    # Redis migration
+    connection_string = os.getenv("REDIS_CONNECTION_STRING")
+
+    if not connection_string:
+        raise ValueError("REDIS_CONNECTION_STRING environment variable required")
+
+    client = redis.from_url(connection_string)
+
+    # Scan for checkpoint keys
+    pattern = "{{ goal_id }}_checkpoints:*"
+    logger.info(f"Scanning Redis keys matching: {pattern}")
+
+    migrated_count = 0
+    error_count = 0
+
+    async for key in client.scan_iter(match=pattern):
+        try:
+            # Get checkpoint data
+            data = await client.get(key)
+
+            if not data:
+                continue
+
+            import json
+            checkpoint = json.loads(data)
+
+            # Get state
+            state = checkpoint.get("channel_values", {})
+            old_version = state.get("schema_version", 1)
+
+            if old_version >= CURRENT_SCHEMA_VERSION:
+                continue  # Already migrated
+
+            # Migrate
+            migrated_state = migrate_state(state)
+            checkpoint["channel_values"] = migrated_state
+
+            if not dry_run:
+                # Write back to Redis
+                await client.set(key, json.dumps(checkpoint))
+
+            migrated_count += 1
+
+            if migrated_count % batch_size == 0:
+                logger.info(f"Migrated {migrated_count} checkpoints...")
+
+            logger.debug(
+                f"Migrated checkpoint {key.decode()} "
+                f"from v{old_version} to v{CURRENT_SCHEMA_VERSION}"
+            )
+
+        except Exception as e:
+            error_count += 1
+            logger.error(f"Failed to migrate checkpoint {key}: {e}")
+
+    logger.info(
+        f"Migration complete: {migrated_count} migrated, {error_count} errors "
+        f"{'(DRY RUN)' if dry_run else ''}"
+    )
+
+    await client.close()
+
+    {% else %}
+    # Memory backend - no migration needed
+    logger.warning("Memory backend - no persistent checkpoints to migrate")
+    {% endif %}
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Migrate checkpoints to current schema version")
+    parser.add_argument("--dry-run", action="store_true", help="Don't actually update checkpoints")
+    parser.add_argument("--batch-size", type=int, default=100, help="Log progress every N checkpoints")
+
+    args = parser.parse_args()
+
+    if args.dry_run:
+        logger.info("DRY RUN MODE - no changes will be made")
+
+    asyncio.run(migrate_all_checkpoints(
+        dry_run=args.dry_run,
+        batch_size=args.batch_size
+    ))
+
+
+if __name__ == "__main__":
+    main()

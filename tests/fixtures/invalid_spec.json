@@ -1,0 +1,10 @@
+{
+  "id": "Invalid-ID-With-Caps",
+  "title": "Invalid Test Spec",
+  "agents": {
+    "test_agent": {
+      "kind": "llm_agent",
+      "tools": ["undefined_tool"]
+    }
+  }
+}
