@@ -30,6 +30,7 @@ def generate(spec, out_dir, dry_run=False):
     # Files to generate
     files = [
         ('scaffold/README.md.j2', 'README.md'),
+        ('scaffold/QUICKSTART.md.j2', 'QUICKSTART.md'),
         ('scaffold/LICENSE.j2', 'LICENSE'),
         ('scaffold/.gitignore.j2', '.gitignore'),
     ]
