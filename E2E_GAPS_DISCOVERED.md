@@ -185,8 +185,8 @@ def create_checkpointer(goal_config):
 ---
 
 ### GAP #4: Azure CLI Not Detected (Bicep Validation Skipped)
-**Severity**: LOW  
-**Status**: SKIPPED
+**Severity**: LOW
+**Status**: ✅ RESOLVED (Tested 2025-12-01)
 
 **Problem**:
 Cannot validate Bicep templates because Azure CLI not installed.
@@ -197,14 +197,35 @@ $ az bicep build --file infra/main.bicep
 az: command not found
 ```
 
-**Impact**: Cannot verify Bicep syntax or resource definitions are valid.
+**Resolution**:
+- Azure CLI is now available
+- All 6 Bicep files validated successfully ✅
+- 0 errors, 2 non-blocking warnings found
 
-**Suggested Fix**:
-1. Add Azure CLI installation check to README
-2. Or provide online Bicep validator URL
-3. Or generate validation script that checks for `az` before running
+**Validation Results**:
+```
+✅ main.bicep - Valid (1 warning: unused parameter)
+✅ cosmos.bicep - Valid (1 warning: secret in output)
+✅ container-env.bicep - Valid
+✅ containerapp.bicep - Valid
+✅ functionapp.bicep - Valid
+✅ keyvault.bicep - Valid
+```
 
-**Note**: This is environment-specific, not a code generation issue.
+**Warnings Found**:
+1. `subscriptionId` parameter unused in main.bicep
+2. Cosmos DB primary key exposed in output (security best practice)
+
+**Conclusion**:
+- This was an **environment issue**, not a code generation bug
+- Generated Bicep is syntactically correct and deployable
+- Warnings are best-practice recommendations only
+
+**Details**: See `GAP4_BICEP_VALIDATION_RESULTS.md`
+
+**Suggested Fixes for v0.2.1**:
+1. Remove unused `subscriptionId` parameter from main.bicep template
+2. Store Cosmos key in Key Vault instead of outputting directly
 
 ---
 

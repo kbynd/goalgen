@@ -5,6 +5,7 @@ param location string
 param tags object = {}
 param databaseName string
 param containerName string
+param keyVaultName string
 
 resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2023-04-15' = {
   name: name
@@ -50,5 +51,20 @@ resource container 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/container
   }
 }
 
+// Reference to Key Vault for storing secrets
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
+  name: keyVaultName
+}
+
+// Store Cosmos DB primary key in Key Vault
+resource cosmosKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'cosmos-primary-key'
+  properties: {
+    value: cosmosAccount.listKeys().primaryMasterKey
+  }
+}
+
 output endpoint string = cosmosAccount.properties.documentEndpoint
-output primaryKey string = cosmosAccount.listKeys().primaryMasterKey
+output keySecretName string = cosmosKeySecret.name
+// Note: Primary key stored in Key Vault, not exposed in outputs for security

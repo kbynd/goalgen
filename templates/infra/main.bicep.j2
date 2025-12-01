@@ -51,6 +51,7 @@ module cosmosDb 'modules/cosmos.bicep' = {
     tags: tags
     databaseName: '{{ goal_id }}_db'
     containerName: 'checkpoints'
+    keyVaultName: keyVault.outputs.name  // Implicit dependency, no need for dependsOn
   }
 }
 {% elif checkpointing_backend == 'redis' %}
@@ -99,8 +100,12 @@ module apiApp 'modules/containerapp.bicep' = {
         value: cosmosDb.outputs.endpoint
       }
       {
-        name: 'COSMOS_KEY'
-        secretRef: 'cosmos-key'
+        name: 'KEYVAULT_NAME'
+        value: keyVault.outputs.name
+      }
+      {
+        name: 'COSMOS_KEY_SECRET_NAME'
+        value: cosmosDb.outputs.keySecretName
       }
       {% elif checkpointing_backend == 'redis' %}
       {
@@ -114,12 +119,7 @@ module apiApp 'modules/containerapp.bicep' = {
         name: 'openai-key'
         value: azureOpenAIKey
       }
-      {% if checkpointing_backend == 'cosmos' %}
-      {
-        name: 'cosmos-key'
-        value: cosmosDb.outputs.primaryKey
-      }
-      {% elif checkpointing_backend == 'redis' %}
+      {% if checkpointing_backend == 'redis' %}
       {
         name: 'redis-connection'
         value: redisCache.outputs.connectionString

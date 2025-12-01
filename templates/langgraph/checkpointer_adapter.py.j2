@@ -71,8 +71,37 @@ def create_checkpointer(goal_config: Dict[str, Any]):
         logger.warning("Cosmos endpoint not configured, falling back to MemorySaver")
         return MemorySaver()
 
+    # Retrieve Cosmos key from Key Vault (recommended for production)
+    # or fall back to environment variable (local dev)
+    cosmos_key = os.getenv("COSMOS_KEY")
+    if not cosmos_key:
+        # Try to get from Key Vault
+        keyvault_name = os.getenv("KEYVAULT_NAME")
+        secret_name = os.getenv("COSMOS_KEY_SECRET_NAME", "cosmos-primary-key")
+
+        if keyvault_name:
+            try:
+                from azure.identity import DefaultAzureCredential
+                from azure.keyvault.secrets import SecretClient
+
+                credential = DefaultAzureCredential()
+                kv_client = SecretClient(
+                    vault_url=f"https://{keyvault_name}.vault.azure.net/",
+                    credential=credential
+                )
+                cosmos_key = kv_client.get_secret(secret_name).value
+                logger.info("Retrieved Cosmos key from Key Vault")
+            except Exception as e:
+                logger.warning(f"Could not retrieve Cosmos key from Key Vault: {e}")
+                logger.warning("Falling back to MemorySaver")
+                return MemorySaver()
+        else:
+            logger.warning("Cosmos key not found, falling back to MemorySaver")
+            return MemorySaver()
+
     underlying_checkpointer = CosmosCheckpointer(
         endpoint=endpoint,
+        key=cosmos_key,
         database=database,
         container=container
     )
