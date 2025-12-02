@@ -389,6 +389,12 @@ All blocking issues resolved:
 **Severity**: CRITICAL
 **Status**: ✅ FIXED in v0.2.0
 
+---
+
+### GAP #8: API Template Still Imports from langgraph
+**Severity**: HIGH
+**Status**: ✅ FIXED (2025-12-01)
+
 **Problem**:
 Generated project creates a directory called `langgraph/` which shadows the installed `langgraph` Python package.
 
@@ -467,5 +473,50 @@ Then add `src/` to PYTHONPATH.
 - ✅ Updated `generators/agents.py` to use `workflow/agents/`
 - ✅ Updated `generators/scaffold.py` directory list
 - ✅ All imports now work correctly without shadowing
+
+---
+
+**Problem**:
+API template (`templates/api/main.py.j2`) was missed during GAP #7 fix. Line 18 still had:
+```python
+from langgraph.quest_builder import graph
+```
+
+**Current Behavior**:
+```bash
+$ python -c "from main import app"
+ModuleNotFoundError: No module named 'langgraph.quest_builder'
+```
+
+**Impact**:
+- ❌ Orchestrator fails to start
+- ❌ Cannot import main module
+- ❌ **Blocks all runtime testing**
+
+**Root Cause**:
+GAP #7 fix only updated `generators/langgraph.py` and `generators/agents.py`, but missed `templates/api/main.py.j2`.
+
+**Fix Applied**:
+```python
+# templates/api/main.py.j2 line 18
+# Before:
+from langgraph.quest_builder import graph
+
+# After:
+from workflow.quest_builder import graph
+```
+
+**Verification**:
+```bash
+$ python -c "from main import app"
+frmk modules not fully available: No module named 'opencensus.ext.azure'. Using MemorySaver fallback.
+Building LangGraph workflow for travel_planning
+LangGraph workflow compiled successfully
+✓ Orchestrator imports successfully
+```
+
+**Discovery**: Found during Phase 2 runtime testing
+
+**Related**: This completes the GAP #7 fix across ALL templates
 
 ---
