@@ -10,6 +10,7 @@ from langchain_openai import ChatOpenAI
 from frmk.core.prompt_loader import get_prompt_loader
 from frmk.core.tool_registry import get_tool_registry
 from frmk.utils.logging import get_logger
+from frmk.utils.tracing import trace_span
 
 
 class BaseAgent(ABC):
@@ -38,12 +39,24 @@ class BaseAgent(ABC):
 
         # Initialize LLM
         llm_config = agent_config.get("llm_config", {})
-        self.llm = ChatOpenAI(
-            model=llm_config.get("model", "gpt-4"),
-            temperature=llm_config.get("temperature", 0.7),
-            max_tokens=llm_config.get("max_tokens"),
-            streaming=llm_config.get("streaming", False),
-        )
+
+        # Allow environment variable override for model (useful for local testing with ollama)
+        import os
+        model_name = os.getenv("OPENAI_MODEL_NAME") or llm_config.get("model", "gpt-4")
+
+        # Build ChatOpenAI initialization parameters
+        llm_params = {
+            "model": model_name,
+            "temperature": llm_config.get("temperature", 0.7),
+            "max_tokens": llm_config.get("max_tokens"),
+            "streaming": llm_config.get("streaming", False),
+        }
+
+        # Support ollama and other OpenAI-compatible endpoints
+        if os.getenv("OPENAI_API_BASE"):
+            llm_params["base_url"] = os.getenv("OPENAI_API_BASE")
+
+        self.llm = ChatOpenAI(**llm_params)
 
         # Load tools from registry
         tool_names = agent_config.get("tools", [])
@@ -66,7 +79,7 @@ class BaseAgent(ABC):
         """Load prompt from Azure AI Foundry or local"""
 
         prompt_loader = get_prompt_loader(
-            self.goal_config.get("prompt_repository")
+            self.goal_config  # Pass full goal_config, not just prompt_repository
         )
 
         # Get version for this agent
@@ -100,6 +113,7 @@ class BaseAgent(ABC):
             for tool in self.tools
         ])
 
+    @trace_span("agent.invoke", component="agent")
     async def invoke(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
         Main invocation method

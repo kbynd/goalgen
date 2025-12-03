@@ -17,6 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "frmk"))
 
 from frmk.conversation import create_conversation_mapper, ConversationContext
+from frmk.utils.tracing import TraceSpan, start_trace
 
 from .config import Config
 
@@ -56,6 +57,11 @@ class {{ goal_id.replace('_', ' ').title().replace(' ', '') }}Bot(ActivityHandle
         Args:
             turn_context: Bot Framework turn context with activity details
         """
+        # Start trace for bot message handling
+        trace_id = start_trace()
+        span = TraceSpan("bot.on_message_activity", trace_id)
+        span.add_metadata("component", "teams_bot")
+
         try:
             activity = turn_context.activity
             user_message = activity.text
@@ -94,13 +100,19 @@ class {{ goal_id.replace('_', ' ').title().replace(' ', '') }}Bot(ActivityHandle
             ))
 {% else %}
             # Send plain text response
-            await turn_context.send_activity(response_message)
+            await turn_context.send_activity(MessageFactory.text(response_message))
 {% endif %}
+
+            span.end()
+            span.log()
 
             # Update activity timestamp (for database strategy)
             self.mapper.update_activity(thread_id)
 
         except Exception as e:
+            span.end()
+            span.add_metadata("error", str(e))
+            span.log()
             logger.error(f"Error handling message: {e}", exc_info=True)
             error_message = "Sorry, I encountered an error processing your request. Please try again."
 {% if use_adaptive_cards %}

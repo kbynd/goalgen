@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from workflow.quest_builder import graph
 from frmk.utils.logging import get_logger
+from frmk.utils.tracing import TraceSpan, start_trace
 
 logger = get_logger("api")
 
@@ -57,12 +58,18 @@ async def health_check():
 async def send_message(request: MessageRequest):
     """Send message to workflow"""
 
-    thread_id = request.thread_id or str(uuid.uuid4())
-    user_id = request.user_id or "anonymous"
-
-    logger.info(f"Message received: thread_id={thread_id}")
+    # Start trace
+    trace_id = start_trace()
+    span = TraceSpan("orchestrator.send_message", trace_id)
+    span.add_metadata("component", "orchestrator")
 
     try:
+        thread_id = request.thread_id or str(uuid.uuid4())
+        user_id = request.user_id or "anonymous"
+
+        span.add_metadata("thread_id", thread_id)
+        logger.info(f"Message received: thread_id={thread_id}")
+
         initial_state = {
             "messages": [("user", request.message)],
             "context": {},
@@ -98,6 +105,9 @@ async def send_message(request: MessageRequest):
         required_fields = {{ context_fields | tojson }}
         completed = all(context.get(field) is not None for field in required_fields)
 
+        span.end()
+        span.log()
+
         return MessageResponse(
             message=response_text,
             thread_id=thread_id,
@@ -106,6 +116,9 @@ async def send_message(request: MessageRequest):
         )
 
     except Exception as e:
+        span.end()
+        span.add_metadata("error", str(e))
+        span.log()
         logger.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 

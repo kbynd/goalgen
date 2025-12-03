@@ -12,6 +12,7 @@ from frmk.conversation.mapper import (
 )
 from typing import Optional, Dict, Any
 import hashlib
+from frmk.utils.tracing import trace_span
 
 
 class HashMapper(ConversationMapper):
@@ -42,6 +43,7 @@ class HashMapper(ConversationMapper):
         self.hash_length = config.get("hash_length", 16)
         self.prefix = config.get("prefix", "teams")
 
+    @trace_span("mapper.get_thread_id", component="conversation_mapper")
     def get_thread_id(self, context: ConversationContext) -> MappingResult:
         """
         Generate deterministic thread_id from conversation context
