@@ -1,0 +1,327 @@
+"""
+Microsoft Teams Bot for {{ goal_title }}
+
+Integrates with Bot Framework SDK and LangGraph workflow via ConversationMapper.
+"""
+
+import os
+import logging
+from typing import Dict, Any, Optional
+from botbuilder.core import ActivityHandler, TurnContext, MessageFactory
+from botbuilder.schema import Activity, ActivityTypes, ChannelAccount
+import httpx
+
+# Import ConversationMapper from frmk
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent / "frmk"))
+
+from frmk.conversation import create_conversation_mapper, ConversationContext
+
+from .config import Config
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+class {{ goal_id.replace('_', ' ').title().replace(' ', '') }}Bot(ActivityHandler):
+    """
+    Teams Bot for {{ goal_title }}
+
+    Handles conversation with Teams users and routes messages to LangGraph workflow.
+    Uses ConversationMapper to maintain persistent conversation state across messages.
+    """
+
+    def __init__(self, config: Config):
+        """
+        Initialize bot with configuration
+
+        Args:
+            config: Bot configuration (API URLs, credentials, etc.)
+        """
+        self.config = config
+
+        # Initialize ConversationMapper
+        self.mapper = create_conversation_mapper(config.conversation_mapping_config)
+
+        logger.info(f"Bot initialized: {{ goal_title }}")
+        logger.info(f"LangGraph endpoint: {config.langgraph_api_url}")
+        logger.info(f"Conversation mapping strategy: {config.conversation_mapping_config.get('strategy')}")
+
+    async def on_message_activity(self, turn_context: TurnContext):
+        """
+        Handle incoming message from Teams user
+
+        Args:
+            turn_context: Bot Framework turn context with activity details
+        """
+        try:
+            activity = turn_context.activity
+            user_message = activity.text
+
+            logger.info(f"Received message from {activity.from_property.name}: {user_message}")
+
+            # Build conversation context from Teams activity
+            context = self._build_conversation_context(activity)
+
+            # Get thread_id for LangGraph using ConversationMapper
+            result = self.mapper.get_thread_id(context)
+            thread_id = result.thread_id
+
+            if result.is_new:
+                logger.info(f"New conversation started: {thread_id}")
+            else:
+                logger.info(f"Continuing conversation: {thread_id}")
+
+            # Call LangGraph API with thread_id
+            response_data = await self._call_langgraph_api(
+                message=user_message,
+                thread_id=thread_id,
+                user_id=context.user_id,
+                context=context
+            )
+
+            # Extract response message
+            response_message = response_data.get("message", "I'm processing your request...")
+
+{% if use_adaptive_cards %}
+            # Send response as Adaptive Card (if enabled)
+            adaptive_card = self._create_response_card(response_message, user_message)
+            await turn_context.send_activity(Activity(
+                type=ActivityTypes.message,
+                attachments=[adaptive_card]
+            ))
+{% else %}
+            # Send plain text response
+            await turn_context.send_activity(response_message)
+{% endif %}
+
+            # Update activity timestamp (for database strategy)
+            self.mapper.update_activity(thread_id)
+
+        except Exception as e:
+            logger.error(f"Error handling message: {e}", exc_info=True)
+            error_message = "Sorry, I encountered an error processing your request. Please try again."
+{% if use_adaptive_cards %}
+            error_card = self._create_error_card(error_message)
+            await turn_context.send_activity(Activity(
+                type=ActivityTypes.message,
+                attachments=[error_card]
+            ))
+{% else %}
+            await turn_context.send_activity(error_message)
+{% endif %}
+
+    async def on_members_added_activity(
+        self,
+        members_added: list[ChannelAccount],
+        turn_context: TurnContext
+    ):
+        """
+        Handle bot added to conversation
+
+        Args:
+            members_added: List of new members
+            turn_context: Bot Framework turn context
+        """
+        for member in members_added:
+            if member.id != turn_context.activity.recipient.id:
+                # User added bot to conversation
+                logger.info(f"Bot added to conversation by {member.name}")
+
+{% if use_adaptive_cards %}
+                # Send welcome message as Adaptive Card
+                welcome_card = self._create_welcome_card()
+                await turn_context.send_activity(Activity(
+                    type=ActivityTypes.message,
+                    attachments=[welcome_card]
+                ))
+{% else %}
+                # Send plain text welcome message
+                welcome_message = (
+                    f"Hello! I'm {{ bot_name }}, your {{ goal_title }} assistant. "
+                    f"How can I help you today?"
+                )
+                await turn_context.send_activity(welcome_message)
+{% endif %}
+
+    async def on_conversation_update_activity(self, turn_context: TurnContext):
+        """
+        Handle conversation lifecycle events (bot added/removed)
+
+        Args:
+            turn_context: Bot Framework turn context
+        """
+        activity = turn_context.activity
+
+        # Handle bot removed from conversation
+        if activity.members_removed:
+            for member in activity.members_removed:
+                if member.id == activity.recipient.id:
+                    logger.info(f"Bot removed from conversation: {activity.conversation.id}")
+
+                    # Deactivate conversation in mapper (if database strategy)
+                    try:
+                        context = self._build_conversation_context(activity)
+                        result = self.mapper.get_thread_id(context)
+                        self.mapper.deactivate_conversation(result.thread_id)
+                    except Exception as e:
+                        logger.error(f"Error deactivating conversation: {e}")
+
+        # Call parent implementation
+        await super().on_conversation_update_activity(turn_context)
+
+    def _build_conversation_context(self, activity: Activity) -> ConversationContext:
+        """
+        Build ConversationContext from Teams Activity
+
+        Args:
+            activity: Bot Framework activity
+
+        Returns:
+            ConversationContext for ConversationMapper
+        """
+        # Use Azure AD Object ID if available (more stable)
+        user_id = activity.from_property.aad_object_id or activity.from_property.id
+
+        return ConversationContext(
+            conversation_id=activity.conversation.id,
+            user_id=user_id,
+            conversation_type=activity.conversation.conversation_type,
+            tenant_id=activity.conversation.tenant_id,
+            user_name=activity.from_property.name,
+            channel_id=activity.channel_data.get("channel", {}).get("id") if activity.channel_data else None,
+            service_url=activity.service_url,
+            metadata={
+                "channel": activity.channel_id,
+                "locale": activity.locale,
+            }
+        )
+
+    async def _call_langgraph_api(
+        self,
+        message: str,
+        thread_id: str,
+        user_id: str,
+        context: ConversationContext
+    ) -> Dict[str, Any]:
+        """
+        Call LangGraph API with message and thread_id
+
+        Args:
+            message: User's message
+            thread_id: LangGraph thread_id from ConversationMapper
+            user_id: User's Azure AD Object ID
+            context: Full conversation context
+
+        Returns:
+            Response data from LangGraph API
+
+        Raises:
+            httpx.HTTPError: If API call fails
+        """
+        url = f"{self.config.langgraph_api_url}/api/v1/message"
+
+        payload = {
+            "message": message,
+            "thread_id": thread_id,
+            "user_id": user_id,
+            "metadata": {
+                "conversation_type": context.conversation_type,
+                "tenant_id": context.tenant_id,
+                "channel": context.metadata.get("channel"),
+            }
+        }
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+            return response.json()
+
+{% if use_adaptive_cards %}
+    def _create_welcome_card(self) -> Dict[str, Any]:
+        """Create Adaptive Card for welcome message"""
+        return {
+            "contentType": "application/vnd.microsoft.card.adaptive",
+            "content": {
+                "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                "type": "AdaptiveCard",
+                "version": "1.4",
+                "body": [
+                    {
+                        "type": "TextBlock",
+                        "text": "{{ bot_name }}",
+                        "size": "Large",
+                        "weight": "Bolder",
+                        "color": "Accent"
+                    },
+                    {
+                        "type": "TextBlock",
+                        "text": "{{ bot_description }}",
+                        "wrap": True,
+                        "spacing": "Medium"
+                    },
+                    {
+                        "type": "TextBlock",
+                        "text": "I'm here to help you with {{ goal_title.lower() }}. Just send me a message to get started!",
+                        "wrap": True,
+                        "isSubtle": True
+                    }
+                ]
+            }
+        }
+
+    def _create_response_card(self, response: str, user_message: str) -> Dict[str, Any]:
+        """Create Adaptive Card for response message"""
+        return {
+            "contentType": "application/vnd.microsoft.card.adaptive",
+            "content": {
+                "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                "type": "AdaptiveCard",
+                "version": "1.4",
+                "body": [
+                    {
+                        "type": "Container",
+                        "items": [
+                            {
+                                "type": "TextBlock",
+                                "text": response,
+                                "wrap": True
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+
+    def _create_error_card(self, error_message: str) -> Dict[str, Any]:
+        """Create Adaptive Card for error message"""
+        return {
+            "contentType": "application/vnd.microsoft.card.adaptive",
+            "content": {
+                "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                "type": "AdaptiveCard",
+                "version": "1.4",
+                "body": [
+                    {
+                        "type": "Container",
+                        "style": "warning",
+                        "items": [
+                            {
+                                "type": "TextBlock",
+                                "text": "⚠️ Error",
+                                "weight": "Bolder",
+                                "color": "Warning"
+                            },
+                            {
+                                "type": "TextBlock",
+                                "text": error_message,
+                                "wrap": True
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+{% endif %}

@@ -1,0 +1,29 @@
+# Microsoft Teams Bot Requirements for {{ goal_title }}
+
+# Bot Framework SDK
+botbuilder-core>=4.15.0
+botbuilder-schema>=4.15.0
+aiohttp>=3.9.0
+
+# HTTP client
+httpx>=0.25.0
+
+# Azure SDK (for Managed Identity and Key Vault)
+azure-identity>=1.15.0
+azure-keyvault-secrets>=4.7.0
+
+# Optional: Database dependencies (uncomment as needed)
+{% if conversation_mapping.strategy == 'database' %}
+# Cosmos DB (if using database strategy with Cosmos)
+# azure-cosmos>=4.5.0
+
+# PostgreSQL (if using database strategy with Postgres)
+# psycopg2-binary>=2.9.0
+{% else %}
+# Uncomment if switching to database strategy:
+# azure-cosmos>=4.5.0
+# psycopg2-binary>=2.9.0
+{% endif %}
+
+# Utilities
+python-dotenv>=1.0.0

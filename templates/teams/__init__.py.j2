@@ -1,0 +1,10 @@
+"""
+{{ goal_title }} Teams Bot
+
+Microsoft Teams Bot integration with LangGraph workflow.
+"""
+
+from .bot import {{ goal_id.replace('_', ' ').title().replace(' ', '') }}Bot
+from .config import Config
+
+__all__ = ["{{ goal_id.replace('_', ' ').title().replace(' ', '') }}Bot", "Config"]

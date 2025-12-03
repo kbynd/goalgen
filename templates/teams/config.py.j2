@@ -1,0 +1,128 @@
+"""
+Configuration for {{ goal_title }} Teams Bot
+
+Loads configuration from environment variables.
+"""
+
+import os
+from typing import Dict, Any
+from dataclasses import dataclass
+
+
+@dataclass
+class Config:
+    """
+    Bot configuration loaded from environment variables
+
+    Environment Variables:
+        MICROSOFT_APP_ID: Bot Framework App ID
+        MICROSOFT_APP_PASSWORD: Bot Framework App Password
+        LANGGRAPH_API_URL: URL of LangGraph API endpoint
+        AZURE_TENANT_ID: Azure AD Tenant ID
+        CONVERSATION_MAPPING_STRATEGY: Conversation mapping strategy (direct/hash/database)
+        COSMOS_CONNECTION_STRING: Cosmos DB connection (if database strategy)
+        POSTGRES_CONNECTION_STRING: PostgreSQL connection (if database strategy)
+    """
+
+    # Bot Framework credentials
+    microsoft_app_id: str
+    microsoft_app_password: str
+
+    # LangGraph API endpoint
+    langgraph_api_url: str
+
+    # Azure AD Tenant
+    azure_tenant_id: str
+
+    # Conversation mapping configuration
+    conversation_mapping_config: Dict[str, Any]
+
+    @classmethod
+    def from_env(cls) -> "Config":
+        """
+        Load configuration from environment variables
+
+        Returns:
+            Config instance
+
+        Raises:
+            ValueError: If required environment variables are missing
+        """
+        # Required environment variables
+        microsoft_app_id = os.getenv("MICROSOFT_APP_ID")
+        microsoft_app_password = os.getenv("MICROSOFT_APP_PASSWORD")
+        langgraph_api_url = os.getenv("LANGGRAPH_API_URL", "{{ langgraph_endpoint }}")
+        azure_tenant_id = os.getenv("AZURE_TENANT_ID")
+
+        if not microsoft_app_id:
+            raise ValueError("MICROSOFT_APP_ID environment variable is required")
+        if not microsoft_app_password:
+            raise ValueError("MICROSOFT_APP_PASSWORD environment variable is required")
+        if not azure_tenant_id:
+            raise ValueError("AZURE_TENANT_ID environment variable is required")
+
+        # Build conversation mapping config
+        conversation_mapping_config = cls._build_conversation_mapping_config()
+
+        return cls(
+            microsoft_app_id=microsoft_app_id,
+            microsoft_app_password=microsoft_app_password,
+            langgraph_api_url=langgraph_api_url,
+            azure_tenant_id=azure_tenant_id,
+            conversation_mapping_config=conversation_mapping_config
+        )
+
+    @staticmethod
+    def _build_conversation_mapping_config() -> Dict[str, Any]:
+        """
+        Build conversation mapping configuration from environment
+
+        Returns:
+            Configuration dict for ConversationMapper factory
+        """
+        strategy = os.getenv("CONVERSATION_MAPPING_STRATEGY", "{{ conversation_mapping.strategy }}")
+
+        config = {
+            "strategy": strategy,
+            "tenant_id": os.getenv("AZURE_TENANT_ID"),
+            "langgraph_workflow_endpoint": os.getenv("LANGGRAPH_API_URL", "{{ langgraph_endpoint }}"),
+        }
+
+        # Strategy-specific configuration
+        if strategy == "hash":
+            config.update({
+                "hash_algorithm": "{{ conversation_mapping.hash_algorithm }}",
+                "hash_length": {{ conversation_mapping.hash_length }},
+                "prefix": "{{ conversation_mapping.prefix }}"
+            })
+
+        elif strategy == "database":
+            # Determine datastore type
+            datastore_type = os.getenv("DATASTORE_TYPE", "cosmosdb")
+
+            datastore_config = {
+                "type": datastore_type
+            }
+
+            if datastore_type == "cosmosdb":
+                cosmos_conn = os.getenv("COSMOS_CONNECTION_STRING")
+                if not cosmos_conn:
+                    raise ValueError("COSMOS_CONNECTION_STRING required for database strategy with Cosmos DB")
+
+                datastore_config.update({
+                    "connection_string": cosmos_conn,
+                    "database_name": os.getenv("COSMOS_DATABASE", "goalgen"),
+                    "container_name": os.getenv("COSMOS_CONTAINER", "conversation_mappings")
+                })
+
+            elif datastore_type == "postgres":
+                postgres_conn = os.getenv("POSTGRES_CONNECTION_STRING")
+                if not postgres_conn:
+                    raise ValueError("POSTGRES_CONNECTION_STRING required for database strategy with PostgreSQL")
+
+                datastore_config["connection_string"] = postgres_conn
+
+            config["datastore"] = datastore_config
+            config["cleanup_inactive_days"] = int(os.getenv("CLEANUP_INACTIVE_DAYS", "90"))
+
+        return config

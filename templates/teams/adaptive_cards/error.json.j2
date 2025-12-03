@@ -1,0 +1,75 @@
+{
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "type": "AdaptiveCard",
+  "version": "1.4",
+  "body": [
+    {
+      "type": "Container",
+      "style": "warning",
+      "items": [
+        {
+          "type": "ColumnSet",
+          "columns": [
+            {
+              "type": "Column",
+              "width": "auto",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "⚠️",
+                  "size": "ExtraLarge"
+                }
+              ]
+            },
+            {
+              "type": "Column",
+              "width": "stretch",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "Something went wrong",
+                  "weight": "Bolder",
+                  "size": "Medium",
+                  "color": "Warning"
+                },
+                {
+                  "type": "TextBlock",
+                  "text": "${errorMessage}",
+                  "wrap": true,
+                  "spacing": "Small"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Container",
+      "spacing": "Medium",
+      "items": [
+        {
+          "type": "TextBlock",
+          "text": "**What you can do:**",
+          "weight": "Bolder",
+          "size": "Small"
+        },
+        {
+          "type": "TextBlock",
+          "text": "• Try rephrasing your question\n• Wait a moment and try again\n• Contact support if the problem persists",
+          "wrap": true,
+          "size": "Small"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.Submit",
+      "title": "Try Again",
+      "data": {
+        "action": "retry"
+      }
+    }
+  ]
+}

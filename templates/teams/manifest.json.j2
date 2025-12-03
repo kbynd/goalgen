@@ -1,0 +1,68 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.16",
+  "version": "1.0.0",
+  "id": "${{MICROSOFT_APP_ID}}",
+  "packageName": "com.{{ goal_id }}",
+  "developer": {
+    "name": "{{ goal_title }} Team",
+    "websiteUrl": "https://example.com",
+    "privacyUrl": "https://example.com/privacy",
+    "termsOfUseUrl": "https://example.com/terms"
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "name": {
+    "short": "{{ bot_name }}",
+    "full": "{{ bot_name }} - {{ goal_title }}"
+  },
+  "description": {
+    "short": "{{ bot_description[:80] }}",
+    "full": "{{ bot_description }}"
+  },
+  "accentColor": "{{ bot_accent_color }}",
+  "bots": [
+    {
+      "botId": "${{MICROSOFT_APP_ID}}",
+      "scopes": [
+        "personal",
+        "team",
+        "groupchat"
+      ],
+      "supportsFiles": false,
+      "isNotificationOnly": false,
+      "commandLists": [
+        {
+          "scopes": [
+            "personal",
+            "team",
+            "groupchat"
+          ],
+          "commands": [
+            {
+              "title": "Help",
+              "description": "Get help and learn what I can do"
+            },
+            {
+              "title": "Start",
+              "description": "Start a new conversation"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "permissions": [
+    "identity",
+    "messageTeamMembers"
+  ],
+  "validDomains": [
+    "${{LANGGRAPH_API_DOMAIN}}"
+  ],
+  "webApplicationInfo": {
+    "id": "${{MICROSOFT_APP_ID}}",
+    "resource": "api://${{LANGGRAPH_API_DOMAIN}}/botid-${{MICROSOFT_APP_ID}}"
+  }
+}

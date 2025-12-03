@@ -1,13 +1,22 @@
-"""Conversation management and tracking"""
+"""
+Conversation Mapping Framework
 
-from .azure_conversation_tracker import (
-    AzureConversationTracker,
-    get_conversation_tracker,
-    reset_conversation_tracker
+Provides flexible thread ID mapping for Teams Bot ↔ LangGraph integration.
+Supports multiple strategies: direct, hash-based, and database-backed.
+"""
+
+from frmk.conversation.mapper import (
+    ConversationMapper,
+    ConversationContext,
+    MappingResult,
+    MappingStrategy
 )
+from frmk.conversation.factory import create_conversation_mapper
 
 __all__ = [
-    "AzureConversationTracker",
-    "get_conversation_tracker",
-    "reset_conversation_tracker"
+    "ConversationMapper",
+    "ConversationContext",
+    "MappingResult",
+    "MappingStrategy",
+    "create_conversation_mapper"
 ]
