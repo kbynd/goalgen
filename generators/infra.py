@@ -56,8 +56,21 @@ def generate(spec: Dict[str, Any], out_dir: str, dry_run: bool = False):
         engine.render_to_file("infra/main.bicep.j2", context, main_bicep)
         print(f"[infra]   ✓ {main_bicep}")
 
-    # Generate modules
-    modules = [
+    # Generate main-simple.bicep (simplified, tested template)
+    main_simple = infra_dir / "main-simple.bicep"
+    if not dry_run:
+        engine.render_to_file("infra/main-simple.bicep.j2", context, main_simple)
+        print(f"[infra]   ✓ {main_simple}")
+
+    # Generate modules for simple deployment
+    simple_modules = [
+        "acr.bicep",
+        "container-apps-environment.bicep",
+        "container-app.bicep",
+    ]
+
+    # Generate advanced modules
+    advanced_modules = [
         "keyvault.bicep",
         "container-env.bicep",
         "containerapp.bicep",
@@ -66,13 +79,16 @@ def generate(spec: Dict[str, Any], out_dir: str, dry_run: bool = False):
     # Add checkpointing backend module
     checkpointing_backend = context.get("checkpointing_backend", "memory")
     if checkpointing_backend == "cosmos":
-        modules.append("cosmos.bicep")
+        advanced_modules.append("cosmos.bicep")
     elif checkpointing_backend == "redis":
-        modules.append("redis.bicep")
+        advanced_modules.append("redis.bicep")
 
     # Add function app if tools exist
     if context.get("tools"):
-        modules.append("functionapp.bicep")
+        advanced_modules.append("functionapp.bicep")
+
+    # Use simple modules by default (tested with E2E)
+    modules = simple_modules
 
     for module in modules:
         module_path = modules_dir / module

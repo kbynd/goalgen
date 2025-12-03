@@ -59,6 +59,7 @@ def generate(spec, out_dir, dry_run=False):
         'tests/integration',
         'config',  # For goal_spec.json
         'frmk',    # For Core SDK
+        'build_context',  # For Docker cloud builds
     ]
 
     # Add conditional directories

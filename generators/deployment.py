@@ -54,6 +54,7 @@ def generate(spec: Dict[str, Any], out_dir: str, dry_run: bool = False):
         ("scripts/destroy.sh.j2", "destroy.sh"),
         ("scripts/publish_prompts.py.j2", "publish_prompts.py"),
         ("scripts/test_prompts.py.j2", "test_prompts.py"),
+        ("scripts/prepare_build_context.sh.j2", "prepare_build_context.sh"),  # For cloud builds
     ]
 
     # Add migration script if schema_migrations defined

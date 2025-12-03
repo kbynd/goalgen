@@ -1,0 +1,42 @@
+# Dockerfile for {{goal_id}}
+# Optimized for cloud builds (ACR, GitHub Actions, etc.)
+# Build context should be at project root with frmk, workflow, config, orchestrator
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy frmk package first
+COPY frmk /app/frmk
+
+# Install frmk package
+RUN pip install --no-cache-dir /app/frmk
+
+# Copy workflow module
+COPY workflow /app/workflow
+
+# Copy config
+COPY config /app/config
+
+# Copy orchestrator requirements
+COPY orchestrator/requirements.txt /tmp/requirements.txt
+
+# Install orchestrator dependencies (frmk already installed)
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# Copy orchestrator code
+COPY orchestrator /app/orchestrator
+
+# Set working directory to orchestrator
+WORKDIR /app/orchestrator
+
+# Expose port
+EXPOSE 8000
+
+# Run FastAPI with uvicorn
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

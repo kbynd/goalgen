@@ -22,5 +22,6 @@ aiohttp>=3.9.0
 httpx>=0.25.0
 
 # GoalGen Framework (Core SDK)
-# Install from relative path or PyPI
--e ../frmk
+# Installed separately in Dockerfile (see COPY frmk step)
+# For cloud builds: frmk is copied and pip installed in the container image
+# For local dev: Install with: pip install -e ../frmk

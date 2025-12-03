@@ -44,7 +44,7 @@ def generate(spec: Dict[str, Any], out_dir: str, dry_run: bool = False):
     # Generate files
     files = [
         ("api/main.py.j2", "main.py"),
-        ("api/Dockerfile.j2", "Dockerfile"),
+        ("api/Dockerfile-cloud.j2", "Dockerfile"),  # Updated to use cloud-compatible Dockerfile
         ("api/.env.sample.j2", ".env.sample"),
         ("api/requirements.txt.j2", "requirements.txt"),
         ("api/.dockerignore.j2", ".dockerignore"),
