@@ -4,12 +4,17 @@ Distributed Tracing for GoalGen Workflows
 Provides simple tracing with timing across the conversation chain.
 """
 
+import os
+import sys
 import time
 import uuid
 import logging
 from typing import Optional, Dict, Any
 from functools import wraps
 from contextvars import ContextVar
+
+# Configuration: Enable/disable tracing via environment variable
+TRACING_ENABLED = os.getenv("TRACING_ENABLED", "true").lower() == "true"
 
 # Context variable to track trace_id across async calls
 _trace_context: ContextVar[Optional[str]] = ContextVar('trace_context', default=None)
@@ -92,6 +97,10 @@ def get_trace_id() -> Optional[str]:
 def trace_span(name: str, **metadata):
     """Decorator to trace a function execution"""
     def decorator(func):
+        # If tracing is disabled, return the original function
+        if not TRACING_ENABLED:
+            return func
+
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
             # Get or create trace ID
