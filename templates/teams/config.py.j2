@@ -18,6 +18,7 @@ class Config:
         MICROSOFT_APP_ID: Bot Framework App ID
         MICROSOFT_APP_PASSWORD: Bot Framework App Password
         LANGGRAPH_API_URL: URL of LangGraph API endpoint
+        LANGGRAPH_API_TIMEOUT: API timeout in seconds (default: 90.0)
         AZURE_TENANT_ID: Azure AD Tenant ID
         CONVERSATION_MAPPING_STRATEGY: Conversation mapping strategy (direct/hash/database)
         COSMOS_CONNECTION_STRING: Cosmos DB connection (if database strategy)
@@ -30,6 +31,9 @@ class Config:
 
     # LangGraph API endpoint
     langgraph_api_url: str
+
+    # LangGraph API timeout (in seconds)
+    langgraph_api_timeout: float
 
     # Azure AD Tenant
     azure_tenant_id: str
@@ -61,6 +65,9 @@ class Config:
         if not azure_tenant_id:
             raise ValueError("AZURE_TENANT_ID environment variable is required")
 
+        # API timeout in seconds (default 90s for slower local LLMs like Ollama)
+        langgraph_api_timeout = float(os.getenv("LANGGRAPH_API_TIMEOUT", "90.0"))
+
         # Build conversation mapping config
         conversation_mapping_config = cls._build_conversation_mapping_config()
 
@@ -68,6 +75,7 @@ class Config:
             microsoft_app_id=microsoft_app_id,
             microsoft_app_password=microsoft_app_password,
             langgraph_api_url=langgraph_api_url,
+            langgraph_api_timeout=langgraph_api_timeout,
             azure_tenant_id=azure_tenant_id,
             conversation_mapping_config=conversation_mapping_config
         )

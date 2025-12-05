@@ -1,0 +1,74 @@
+{
+  "type": "AdaptiveCard",
+  "version": "1.4",
+  "body": [
+    {
+      "type": "Container",
+      "items": [
+        {
+          "type": "TextBlock",
+          "text": "👋 Welcome to {{ bot_name }}!",
+          "size": "ExtraLarge",
+          "weight": "Bolder",
+          "color": "Accent"
+        },
+        {
+          "type": "TextBlock",
+          "text": "{{ bot_description }}",
+          "wrap": true,
+          "spacing": "Medium",
+          "size": "Medium"
+        }
+      ],
+      "style": "emphasis"
+    },
+    {
+      "type": "Container",
+      "spacing": "Medium",
+      "items": [
+        {
+          "type": "TextBlock",
+          "text": "**Getting Started**",
+          "weight": "Bolder",
+          "size": "Medium"
+        },
+        {
+          "type": "TextBlock",
+          "text": "Simply send me a message to begin. I can help you with:",
+          "wrap": true,
+          "spacing": "Small"
+        },
+        {
+          "type": "FactSet",
+          "facts": [
+            {
+              "title": "✓",
+              "value": "Answer questions about {{ goal_title }}"
+            },
+            {
+              "title": "✓",
+              "value": "Guide you through multi-step processes"
+            },
+            {
+              "title": "✓",
+              "value": "Remember our conversation context"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Container",
+      "spacing": "Medium",
+      "items": [
+        {
+          "type": "TextBlock",
+          "text": "💡 **Tip:** Your conversations are persistent across devices. You can continue where you left off anytime!",
+          "wrap": true,
+          "isSubtle": true,
+          "size": "Small"
+        }
+      ]
+    }
+  ]
+}

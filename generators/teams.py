@@ -6,9 +6,11 @@ Generates Microsoft Teams Bot implementation with Bot Framework integration.
 Creates:
 - teams_app/bot.py - Bot Framework integration with ConversationMapper
 - teams_app/config.py - Configuration management
+- teams_app/server.py - Local development server (Bot Framework Emulator)
 - teams_app/requirements.txt - Teams Bot dependencies
 - teams_app/manifest.json - Teams app manifest
-- teams_app/adaptive_cards/*.json - Adaptive Card templates
+- teams_app/adaptive_cards/v1.2/*.json - Adaptive Cards for emulator (v1.2)
+- teams_app/adaptive_cards/v1.4/*.json - Adaptive Cards for Teams (v1.4)
 - teams_app/.env.sample - Environment variables template
 """
 
@@ -61,6 +63,7 @@ def generate(spec: Dict[str, Any], out_dir: str, dry_run: bool = False):
     files = [
         ("teams/bot.py.j2", "bot.py"),
         ("teams/config.py.j2", "config.py"),
+        ("teams/server.py.j2", "server.py"),
         ("teams/requirements.txt.j2", "requirements.txt"),
         ("teams/manifest.json.j2", "manifest.json"),
         ("teams/.env.sample.j2", ".env.sample"),
@@ -76,21 +79,29 @@ def generate(spec: Dict[str, Any], out_dir: str, dry_run: bool = False):
             engine.render_to_file(template_name, context, output_path)
             print(f"[teams]   ✓ {output_path}")
 
-    # Generate adaptive cards
-    adaptive_card_templates = [
-        ("teams/adaptive_cards/welcome.json.j2", "welcome.json"),
-        ("teams/adaptive_cards/response.json.j2", "response.json"),
-        ("teams/adaptive_cards/error.json.j2", "error.json"),
-    ]
+    # Generate adaptive cards with versioning (v1.2 for emulator, v1.4 for Teams)
+    adaptive_card_versions = ["v1.2", "v1.4"]
 
-    for template_name, output_filename in adaptive_card_templates:
-        output_path = adaptive_cards_dir / output_filename
+    for version in adaptive_card_versions:
+        version_dir = adaptive_cards_dir / version
 
-        if dry_run:
-            print(f"[teams]   Would write: {output_path}")
-        else:
-            engine.render_to_file(template_name, context, output_path)
-            print(f"[teams]   ✓ {output_path}")
+        if not dry_run:
+            version_dir.mkdir(parents=True, exist_ok=True)
+
+        adaptive_card_templates = [
+            (f"teams/adaptive_cards/{version}/welcome.json.j2", "welcome.json"),
+            (f"teams/adaptive_cards/{version}/response.json.j2", "response.json"),
+            (f"teams/adaptive_cards/{version}/error.json.j2", "error.json"),
+        ]
+
+        for template_name, output_filename in adaptive_card_templates:
+            output_path = version_dir / output_filename
+
+            if dry_run:
+                print(f"[teams]   Would write: {output_path}")
+            else:
+                engine.render_to_file(template_name, context, output_path)
+                print(f"[teams]   ✓ {output_path}")
 
     print(f"[teams] ✓ Teams Bot generated for: {context['goal_id']}")
 

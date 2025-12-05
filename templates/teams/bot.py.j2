@@ -5,10 +5,11 @@ Integrates with Bot Framework SDK and LangGraph workflow via ConversationMapper.
 """
 
 import os
+import json
 import logging
 from typing import Dict, Any, Optional
-from botbuilder.core import ActivityHandler, TurnContext, MessageFactory
-from botbuilder.schema import Activity, ActivityTypes, ChannelAccount
+from botbuilder.core import ActivityHandler, TurnContext, MessageFactory, CardFactory
+from botbuilder.schema import Activity, ActivityTypes, ChannelAccount, Attachment
 import httpx
 
 # Import ConversationMapper from frmk
@@ -46,6 +47,12 @@ class {{ goal_id.replace('_', ' ').title().replace(' ', '') }}Bot(ActivityHandle
         # Initialize ConversationMapper
         self.mapper = create_conversation_mapper(config.conversation_mapping_config)
 
+{% if use_adaptive_cards %}
+        # Load adaptive card templates
+        self.cards_dir = Path(__file__).parent / "adaptive_cards"
+        self._load_card_templates()
+
+{% endif %}
         logger.info(f"Bot initialized: {{ goal_title }}")
         logger.info(f"LangGraph endpoint: {config.langgraph_api_url}")
         logger.info(f"Conversation mapping strategy: {config.conversation_mapping_config.get('strategy')}")
@@ -93,11 +100,9 @@ class {{ goal_id.replace('_', ' ').title().replace(' ', '') }}Bot(ActivityHandle
 
 {% if use_adaptive_cards %}
             # Send response as Adaptive Card (if enabled)
-            adaptive_card = self._create_response_card(response_message, user_message)
-            await turn_context.send_activity(Activity(
-                type=ActivityTypes.message,
-                attachments=[adaptive_card]
-            ))
+            response_card = self._create_response_card_from_template(response_message, activity)
+            card_activity = MessageFactory.attachment(response_card)
+            await turn_context.send_activity(card_activity)
 {% else %}
             # Send plain text response
             await turn_context.send_activity(MessageFactory.text(response_message))
@@ -116,11 +121,9 @@ class {{ goal_id.replace('_', ' ').title().replace(' ', '') }}Bot(ActivityHandle
             logger.error(f"Error handling message: {e}", exc_info=True)
             error_message = "Sorry, I encountered an error processing your request. Please try again."
 {% if use_adaptive_cards %}
-            error_card = self._create_error_card(error_message)
-            await turn_context.send_activity(Activity(
-                type=ActivityTypes.message,
-                attachments=[error_card]
-            ))
+            error_card = self._create_error_card_from_template(error_message, activity)
+            card_activity = MessageFactory.attachment(error_card)
+            await turn_context.send_activity(card_activity)
 {% else %}
             await turn_context.send_activity(error_message)
 {% endif %}
@@ -144,11 +147,9 @@ class {{ goal_id.replace('_', ' ').title().replace(' ', '') }}Bot(ActivityHandle
 
 {% if use_adaptive_cards %}
                 # Send welcome message as Adaptive Card
-                welcome_card = self._create_welcome_card()
-                await turn_context.send_activity(Activity(
-                    type=ActivityTypes.message,
-                    attachments=[welcome_card]
-                ))
+                welcome_card = self._create_welcome_card_from_template(turn_context.activity)
+                card_activity = MessageFactory.attachment(welcome_card)
+                await turn_context.send_activity(card_activity)
 {% else %}
                 # Send plain text welcome message
                 welcome_message = (
@@ -252,94 +253,152 @@ class {{ goal_id.replace('_', ' ').title().replace(' ', '') }}Bot(ActivityHandle
         if trace_id:
             headers["X-Trace-Id"] = trace_id
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=self.config.langgraph_api_timeout) as client:
             response = await client.post(url, json=payload, headers=headers)
             response.raise_for_status()
             return response.json()
 
 {% if use_adaptive_cards %}
-    def _create_welcome_card(self) -> Dict[str, Any]:
-        """Create Adaptive Card for welcome message"""
-        return {
-            "contentType": "application/vnd.microsoft.card.adaptive",
-            "content": {
-                "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+    def _load_card_templates(self):
+        """Load adaptive card templates from version-specific directories"""
+        self.card_templates = {}
+        try:
+            # Load both v1.2 (emulator) and v1.4 (Teams) templates
+            for version in ["v1.2", "v1.4"]:
+                version_dir = self.cards_dir / version
+                if not version_dir.exists():
+                    continue
+
+                for card_file in ["welcome.json", "response.json", "error.json"]:
+                    card_path = version_dir / card_file
+                    if card_path.exists():
+                        with open(card_path) as f:
+                            card_name = card_file.replace(".json", "")
+                            # Store as "welcome_v12", "welcome_v14", etc.
+                            template_key = f"{card_name}_{version.replace('.', '')}"
+                            self.card_templates[template_key] = json.load(f)
+                            logger.info(f"Loaded card template: {template_key}")
+        except Exception as e:
+            logger.warning(f"Error loading card templates: {e}")
+
+    def _get_card_version(self, activity: Activity) -> str:
+        """
+        Detect appropriate Adaptive Card version based on channel
+
+        Args:
+            activity: Bot Framework activity
+
+        Returns:
+            Version string: "v12" (emulator) or "v14" (Teams)
+        """
+        # Emulator has limited support - use v1.2
+        if activity.channel_id == "emulator":
+            return "v12"
+        # Teams supports latest features - use v1.4
+        elif activity.channel_id == "msteams":
+            return "v14"
+        # Default to safe version for unknown channels
+        return "v12"
+
+    def _substitute_template_vars(self, template: Dict[str, Any], variables: Dict[str, str]) -> Dict[str, Any]:
+        """
+        Recursively substitute template variables in adaptive card JSON
+
+        Args:
+            template: Card template dictionary
+            variables: Variables to substitute (e.g., {"${response}": "actual text"})
+
+        Returns:
+            Card with substituted variables
+        """
+        import copy
+        card = copy.deepcopy(template)
+
+        def substitute_recursive(obj):
+            if isinstance(obj, dict):
+                return {k: substitute_recursive(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [substitute_recursive(item) for item in obj]
+            elif isinstance(obj, str):
+                result = obj
+                for var, value in variables.items():
+                    result = result.replace(var, value)
+                return result
+            else:
+                return obj
+
+        return substitute_recursive(card)
+
+    def _create_welcome_card_from_template(self, activity: Activity) -> Attachment:
+        """Create Adaptive Card for welcome message from template"""
+        version = self._get_card_version(activity)
+        template_key = f"welcome_{version}"
+
+        if template_key in self.card_templates:
+            card_content = self.card_templates[template_key]
+        else:
+            # Fallback if template not loaded
+            card_content = {
                 "type": "AdaptiveCard",
-                "version": "1.4",
+                "version": "1.2",
                 "body": [
                     {
                         "type": "TextBlock",
-                        "text": "{{ bot_name }}",
+                        "text": "👋 Welcome to {{ bot_name }}!",
                         "size": "Large",
-                        "weight": "Bolder",
-                        "color": "Accent"
-                    },
-                    {
-                        "type": "TextBlock",
-                        "text": "{{ bot_description }}",
-                        "wrap": True,
-                        "spacing": "Medium"
-                    },
-                    {
-                        "type": "TextBlock",
-                        "text": "I'm here to help you with {{ goal_title.lower() }}. Just send me a message to get started!",
-                        "wrap": True,
-                        "isSubtle": True
+                        "weight": "Bolder"
                     }
                 ]
             }
-        }
 
-    def _create_response_card(self, response: str, user_message: str) -> Dict[str, Any]:
-        """Create Adaptive Card for response message"""
-        return {
-            "contentType": "application/vnd.microsoft.card.adaptive",
-            "content": {
-                "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        return CardFactory.adaptive_card(card_content)
+
+    def _create_response_card_from_template(self, response: str, activity: Activity) -> Attachment:
+        """Create Adaptive Card for response message from template"""
+        version = self._get_card_version(activity)
+        template_key = f"response_{version}"
+
+        if template_key in self.card_templates:
+            template = self.card_templates[template_key]
+            card_content = self._substitute_template_vars(template, {"${response}": response})
+        else:
+            # Fallback if template not loaded
+            card_content = {
                 "type": "AdaptiveCard",
-                "version": "1.4",
+                "version": "1.2",
                 "body": [
                     {
-                        "type": "Container",
-                        "items": [
-                            {
-                                "type": "TextBlock",
-                                "text": response,
-                                "wrap": True
-                            }
-                        ]
+                        "type": "TextBlock",
+                        "text": response,
+                        "wrap": True
                     }
                 ]
             }
-        }
 
-    def _create_error_card(self, error_message: str) -> Dict[str, Any]:
-        """Create Adaptive Card for error message"""
-        return {
-            "contentType": "application/vnd.microsoft.card.adaptive",
-            "content": {
-                "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        return CardFactory.adaptive_card(card_content)
+
+    def _create_error_card_from_template(self, error_message: str, activity: Activity) -> Attachment:
+        """Create Adaptive Card for error message from template"""
+        version = self._get_card_version(activity)
+        template_key = f"error_{version}"
+
+        if template_key in self.card_templates:
+            template = self.card_templates[template_key]
+            card_content = self._substitute_template_vars(template, {"${errorMessage}": error_message})
+        else:
+            # Fallback if template not loaded
+            card_content = {
                 "type": "AdaptiveCard",
-                "version": "1.4",
+                "version": "1.2",
                 "body": [
                     {
-                        "type": "Container",
-                        "style": "warning",
-                        "items": [
-                            {
-                                "type": "TextBlock",
-                                "text": "⚠️ Error",
-                                "weight": "Bolder",
-                                "color": "Warning"
-                            },
-                            {
-                                "type": "TextBlock",
-                                "text": error_message,
-                                "wrap": True
-                            }
-                        ]
+                        "type": "TextBlock",
+                        "text": f"⚠️ Error: {error_message}",
+                        "wrap": True,
+                        "color": "Warning"
                     }
                 ]
             }
-        }
+
+        return CardFactory.adaptive_card(card_content)
 {% endif %}
