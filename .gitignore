@@ -129,3 +129,8 @@ yarn.lock
 # Build outputs
 *.bicep.json
 *.azuredeploy.json
+
+# Temporary test directories
+test_warning2_fix/
+test_warning2_fix2/
+e2e_runtime_test/
