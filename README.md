@@ -11,11 +11,9 @@ GoalGen scaffolds complete, production-ready projects using LangGraph for workfl
 
 - 🤖 **Multi-Agent Orchestration** - LangGraph-based workflows with supervisor patterns
 - 💾 **Persistent Conversations** - Cross-device resume with Cosmos DB/Redis checkpointing
-- 🔄 **Schema Versioning** - Safe state evolution with automatic migrations
-- 🔧 **Common Tools** - Built-in SQL, Vector DB, HTTP, and custom tool support
 - 🏗️ **Infrastructure as Code** - Azure Bicep templates for complete deployments
-- 🧪 **Testing Built-in** - Generated test suites for migrations and workflows
-- 📊 **Production Ready** - AI Foundry integration, monitoring, RBAC, secrets management
+- 🧪 **Testing Built-in** - Generated test suites with pytest
+- 📊 **Production Ready** - FastAPI orchestrator, Teams Bot, deployment automation
 
 ## What's New in v0.2.0-beta
 
@@ -164,104 +162,6 @@ Run `goalgen.py` and get a complete, deployable project.
 - **Deploy scripts** - `build.sh`, `deploy.sh`, `destroy.sh`
 - **Testing** - pytest suite with migration tests
 
-## Advanced Features
-
-### Schema Versioning
-
-Add fields safely without breaking existing conversations:
-
-```json
-{
-  "schema_version": 2,
-  "schema_migrations": {
-    "1_to_2": {
-      "description": "Added budget field",
-      "migration": "set_default",
-      "added_fields": ["budget"],
-      "default_values": {"budget": null}
-    }
-  }
-}
-```
-
-GoalGen generates:
-- Migration functions
-- Automatic upgrading on conversation resume
-- Batch migration scripts
-- Complete test suite
-
-See [SCHEMA_VERSIONING.md](SCHEMA_VERSIONING.md) for details.
-
-### Incremental Generation (NEW in v0.1.0)
-
-Add new agents/tools without regenerating everything:
-
-```bash
-# Initial generation
-./goalgen.py --spec v1_spec.json --out ./my_project
-
-# Customize agents
-vim my_project/langgraph/agents/flight_agent.py
-
-# Add hotel_agent to spec
-vim v2_spec.json
-
-# Incremental update - preserves your changes
-./goalgen.py --spec v2_spec.json --out ./my_project --incremental
-```
-
-**Output:**
-```
-[goalgen] Incremental mode - analyzing changes...
-[goalgen]   New agents: hotel_agent
-[goalgen]   New tools: hotel_api
-Running generator: agents
-[agents] ✓ Generated hotel_agent.py
-[agents] ✓ Preserved flight_agent.py (user modified)
-```
-
-GoalGen tracks what was generated in `.goalgen/manifest.json` and detects:
-- What changed in your spec
-- Which files you modified
-- What needs to be regenerated
-
-See [INCREMENTAL_GENERATION.md](INCREMENTAL_GENERATION.md) for details.
-
-### Common Tools
-
-Built-in tool implementations:
-
-```json
-{
-  "tools": {
-    "customer_db": {
-      "type": "sql",
-      "spec": {
-        "connection_string": "${DB_CONNECTION}",
-        "database_type": "postgresql",
-        "read_only": true
-      }
-    },
-    "knowledge_base": {
-      "type": "vectordb",
-      "spec": {
-        "provider": "azure_ai_search",
-        "index_name": "docs",
-        "top_k": 5
-      }
-    }
-  }
-}
-```
-
-Supports:
-- **SQL**: Azure SQL, PostgreSQL, MySQL, SQLite
-- **Vector DBs**: Azure AI Search, Pinecone, Weaviate, Qdrant, Chroma
-- **HTTP**: REST APIs with auth and retry
-- **Functions**: Custom Python functions
-
-See [COMMON_TOOLS.md](COMMON_TOOLS.md) for full reference.
-
 ## Selective Generation
 
 Generate only what you need:
@@ -299,11 +199,8 @@ Generate only what you need:
 ## Documentation
 
 - **[CLAUDE.md](CLAUDE.md)** - Architecture and development guide
-- **[SCHEMA_VERSIONING.md](SCHEMA_VERSIONING.md)** - Schema evolution patterns
-- **[COMMON_TOOLS.md](COMMON_TOOLS.md)** - Built-in tool reference
-- **[STATE_SCHEMA.md](STATE_SCHEMA.md)** - State design guide
-- **[CONFIG_SPEC_SCHEMA.md](CONFIG_SPEC_SCHEMA.md)** - Full spec reference
-- **[MULTI_INSTANCE_TOOLS.md](MULTI_INSTANCE_TOOLS.md)** - Multiple tool instances
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contribution guidelines
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history
 
 ## Architecture
 
@@ -376,17 +273,19 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ## Roadmap
 
 **v0.3.0** (Next Release):
-- [ ] Implement security generator (Key Vault, RBAC)
-- [ ] Implement webchat generator (React SPA)
-- [ ] Implement evaluators generator
-- [ ] Add unit tests for generators
-- [ ] Infrastructure generator with full Bicep templates
-- [ ] Add CI/CD for GoalGen itself
+- [ ] **Schema Versioning** - Safe state evolution with automatic migrations
+- [ ] **Incremental Generation** - Update generated code without losing customizations
+- [ ] **Common Tools** - Built-in SQL, Vector DB, HTTP tool implementations
+- [ ] **Security Generator** - Key Vault, RBAC, managed identity configuration
+- [ ] **Webchat Generator** - React SPA with SignalR real-time messaging
+- [ ] **Evaluators Generator** - Validation logic and context completeness checks
+- [ ] **Infrastructure Generator** - Full Azure Bicep templates with networking
+- [ ] **Unit Tests** - Comprehensive test suite for all generators
 
 **v1.0.0** (Production Ready):
-- [ ] Complete documentation
-- [ ] Video tutorials
-- [ ] More example specs
+- [ ] Complete documentation with tutorials
+- [ ] Video walkthroughs and demos
+- [ ] Additional example specifications
 - [ ] Performance optimizations
 - [ ] Multi-cloud support (AWS, GCP)
 
