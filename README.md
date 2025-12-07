@@ -17,13 +17,35 @@ GoalGen scaffolds complete, production-ready projects using LangGraph for workfl
 - 🧪 **Testing Built-in** - Generated test suites for migrations and workflows
 - 📊 **Production Ready** - AI Foundry integration, monitoring, RBAC, secrets management
 
+## What's New in v0.2.0-beta
+
+### Teams Bot Generator
+- ✨ **Versioned Adaptive Cards** - Auto-detects channel (v1.2 for Emulator, v1.4 for Teams)
+- 🔧 **Configurable API Timeout** - Support for slow local LLMs via `LANGGRAPH_API_TIMEOUT`
+- 🖥️ **Local Development Server** - Test Teams Bots with Bot Framework Emulator
+- 📱 **Channel Detection** - Automatic template selection based on conversation context
+
+### Runtime & Deployment
+- 🐳 **Cloud Build Support** - New `Dockerfile-cloud.j2` for ACR and GitHub Actions
+- 🔌 **OpenAI-Compatible Endpoints** - Use Ollama, llama.cpp via `OPENAI_API_BASE`
+- 🏗️ **Build Context Scripts** - `prepare_build_context.sh` for streamlined deployments
+- ✅ **Runtime Gap Fixes** - All E2E runtime gaps resolved (Gap #9-12)
+
+### Documentation & Community
+- 📚 **CONTRIBUTING.md** - Open source contribution guidelines
+- 📝 **CHANGELOG.md** - Complete version history
+- 🐛 **GitHub Issue Templates** - Bug reports, feature requests, questions
+- 🚀 **Production Ready** - Tested end-to-end with both cloud and local LLMs
+
+See [CHANGELOG.md](CHANGELOG.md) for full release notes.
+
 ## Quick Start
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourorg/goalgen.git
+git clone https://github.com/kbynd/goalgen.git
 cd goalgen
 
 # Create virtual environment
@@ -133,7 +155,7 @@ Run `goalgen.py` and get a complete, deployable project.
 ### API & UX
 
 - **FastAPI orchestrator** - `/message` endpoint with auth
-- **Teams Bot** - Manifest and deployment (coming soon)
+- **Teams Bot** - Manifest, adaptive cards, local dev server
 - **Webchat SPA** - React/SignalR interface (coming soon)
 
 ### DevOps
@@ -269,8 +291,8 @@ Generate only what you need:
 - `deployment` - Deploy scripts
 - `tests` - Test infrastructure
 - `assets` - Prompts and static files
+- `teams` - Teams Bot with adaptive cards
 - `security` - Key Vault (coming soon)
-- `teams` - Teams Bot (coming soon)
 - `webchat` - Web chat (coming soon)
 - `evaluators` - Validation logic (coming soon)
 
@@ -329,17 +351,17 @@ Generate only what you need:
 
 ## Development Status
 
-**Current Version**: 0.1.0-alpha
+**Current Version**: 0.2.0-beta
 
 **Generator Status:**
-- ✅ Fully Implemented: scaffold, langgraph, agents, tools, api, infra, cicd, deployment, tests, assets
-- 🚧 Coming Soon: security, teams, webchat, evaluators
+- ✅ Fully Implemented: scaffold, langgraph, agents, tools, api, teams, infra, cicd, deployment, tests, assets
+- 🚧 Coming Soon: security, webchat, evaluators
 
-See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) for details.
+See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) (coming soon) for guidelines.
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ### Quick Contribution Guide
 
@@ -353,12 +375,12 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) (coming soon) f
 
 ## Roadmap
 
-**v0.2.0** (Next Release):
+**v0.3.0** (Next Release):
 - [ ] Implement security generator (Key Vault, RBAC)
-- [ ] Implement teams generator (Teams Bot manifest)
 - [ ] Implement webchat generator (React SPA)
 - [ ] Implement evaluators generator
 - [ ] Add unit tests for generators
+- [ ] Infrastructure generator with full Bicep templates
 - [ ] Add CI/CD for GoalGen itself
 
 **v1.0.0** (Production Ready):
@@ -380,9 +402,10 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourorg/goalgen/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourorg/goalgen/discussions)
+- **Issues**: [GitHub Issues](https://github.com/kbynd/goalgen/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/kbynd/goalgen/discussions)
 - **Documentation**: [Full Docs](CLAUDE.md)
+- **Changelog**: [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
