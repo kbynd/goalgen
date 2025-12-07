@@ -14,7 +14,7 @@ from generators import (
 from manifest import GenerationManifest
 from spec_validator import SpecValidator, Severity
 
-__version__ = "0.1.0"
+__version__ = "0.2.0-beta"
 
 SUB_GENERATORS = {
     "scaffold": scaffold.generate,

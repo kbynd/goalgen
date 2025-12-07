@@ -10,7 +10,7 @@ Provides:
 - Logging and metrics
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0-beta"
 
 from .agents.base_agent import BaseAgent
 from .tools.base_tool import BaseTool, ToolOutput

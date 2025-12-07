@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "goalgen"
-version = "0.1.0"
+version = "0.2.0-beta"
 description = "Code generator for multi-agent conversational AI systems using LangGraph and Azure"
 readme = "README.md"
 requires-python = ">=3.11"
