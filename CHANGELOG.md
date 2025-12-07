@@ -153,7 +153,7 @@ All runtime gaps from E2E testing have been fixed:
 
 ## Links
 
-- [GoalGen Repository](https://github.com/anthropics/goalgen) (placeholder)
+- [GoalGen Repository](https://github.com/kbynd/goalgen)
 - [Documentation](./README.md)
 - [Contributing Guide](./CONTRIBUTING.md)
 - [License](./LICENSE)
