@@ -34,6 +34,8 @@ Based on the configuration matrix, here's the complete goal spec JSON schema tha
       "tools": ["string"],
       "max_loop": "number",
       "prompt_template": "string (path)",
+      "pattern": "string (optional: 'react'|'chain_of_thought'|'planning' - v0.3.0+)",
+      "reflection": "boolean (optional: enable self-reflection - v0.3.0+)",
       "llm_config": {
         "model": "string (default model)",
         "temperature": "number (default)",
@@ -243,6 +245,8 @@ Based on the configuration matrix, here's the complete goal spec JSON schema tha
 - `agents.*` → Agent implementations
 - `agents.*.llm_config` → Default LLM settings
 - `agents.*.prompt_template` → Prompt loading
+- `agents.*.pattern` → Agentic design pattern (react, chain_of_thought, planning) - v0.3.0+
+- `agents.*.reflection` → Enable self-reflection loop for quality control - v0.3.0+
 
 ### evaluators
 - `evaluators.*` → Evaluator logic

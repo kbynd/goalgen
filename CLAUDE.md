@@ -310,6 +310,171 @@ Tools are bound to agents in the spec:
 - Azure Functions can host tool implementations
 - Tools accessed via OpenAI function calling
 
+## Agentic Design Patterns
+
+GoalGen supports several agentic design patterns out of the box, with more planned for future releases.
+
+### Patterns Supported in v0.2.0
+
+**1. Tool Use Pattern** ✅
+- Agents bind to tools (HTTP APIs, functions) defined in the spec
+- LLM uses function calling to determine when to invoke tools
+- Generated code includes tool wrappers with retry logic and error handling
+- Configured via `agents.<agent_name>.tools` array in spec
+
+**Example**:
+```json
+{
+  "agents": {
+    "flight_agent": {
+      "kind": "llm_agent",
+      "tools": ["flight_api", "calculator"]
+    }
+  },
+  "tools": {
+    "flight_api": {
+      "type": "http",
+      "spec": {"url": "${FLIGHT_API_URL}/search"}
+    }
+  }
+}
+```
+
+**2. Multi-Agent Collaboration Pattern** ✅
+- Supervisor agent coordinates multiple specialist agents
+- Each agent focuses on a specific domain (flights, hotels, etc.)
+- Conversation state shared across agents via LangGraph checkpointer
+- Agents communicate through shared state fields
+
+**Example**:
+```json
+{
+  "agents": {
+    "supervisor_agent": {
+      "kind": "supervisor",
+      "policy": "simple_router"
+    },
+    "flight_agent": {"kind": "llm_agent"},
+    "hotel_agent": {"kind": "llm_agent"}
+  }
+}
+```
+
+**3. Supervisor/Router Pattern** ✅
+- Supervisor agent routes user messages to appropriate specialist agents
+- Routes based on conversation intent and goal triggers
+- Supports simple_router policy (evaluator-based routing)
+- Can implement custom routing logic via policy configuration
+
+**How it works**:
+- User message → Supervisor analyzes intent
+- Supervisor checks evaluators for context completeness
+- Routes to appropriate agent or asks for missing information
+- Specialist agent completes task and returns control to supervisor
+
+**4. Context Completeness Validation** ✅
+- Evaluators check if required context fields are present
+- Human-in-the-loop: pauses workflow to ask user for missing info
+- Configured via `evaluators` section in spec
+- Prevents agents from executing with incomplete information
+
+**Example**:
+```json
+{
+  "evaluators": {
+    "check_travel_context": {
+      "checks": [
+        {"field": "destination", "required": true},
+        {"field": "dates", "required": true}
+      ],
+      "on_missing": "ask_user"
+    }
+  }
+}
+```
+
+### Patterns Planned for v0.3.0
+
+**Reflection Pattern** 🚧
+- Agent evaluates its own output before returning to user
+- Self-correction loop: generate → evaluate → refine
+- Useful for quality control and error detection
+- Will be configured via `agents.<name>.reflection: true`
+
+**ReAct (Reasoning + Acting)** 🚧
+- Agent explicitly reasons about next steps before taking action
+- Thought → Action → Observation cycle
+- Improves agent decision-making transparency
+- Will be available as `agents.<name>.pattern: "react"`
+
+**Chain of Thought** 🚧
+- Agent breaks down complex problems into reasoning steps
+- Explicit intermediate reasoning before final answer
+- Configured via prompt templates or agent pattern setting
+
+**Planning Pattern** 🚧
+- Agent creates multi-step plan before execution
+- Plan → Execute → Monitor cycle
+- Useful for complex, multi-stage goals
+- Will extend task orchestration capabilities
+
+**Memory/RAG Pattern** 🚧
+- Long-term memory beyond conversation checkpoints
+- Vector DB integration for semantic search over past conversations
+- Configured via `state_management.memory` section
+
+### Using Patterns in Generated Code
+
+**Manual Pattern Implementation (v0.2.0)**:
+You can manually implement additional patterns in generated agent code:
+
+1. **Edit `langgraph/agents/<agent_name>.py`**
+2. **Modify agent prompts in `prompts/<agent_name>.md.tpl`**
+3. **Add reflection/planning logic in agent node functions**
+
+**Example - Adding Reflection**:
+```python
+# In langgraph/agents/flight_agent.py
+async def flight_agent_node(state):
+    # Generate initial response
+    response = await llm.ainvoke(messages)
+
+    # Reflection step (manually added)
+    reflection_prompt = f"Evaluate this response for accuracy: {response}"
+    evaluation = await llm.ainvoke(reflection_prompt)
+
+    if "needs improvement" in evaluation.lower():
+        # Regenerate with feedback
+        response = await llm.ainvoke(messages + [evaluation])
+
+    return {"messages": [response]}
+```
+
+**Automatic Pattern Generation (v0.3.0+)**:
+Future releases will auto-generate pattern implementations based on spec configuration:
+
+```json
+{
+  "agents": {
+    "flight_agent": {
+      "kind": "llm_agent",
+      "pattern": "react",
+      "reflection": true,
+      "tools": ["flight_api"]
+    }
+  }
+}
+```
+
+### Pattern Selection Guidelines
+
+- **Simple query-response**: Use basic llm_agent without patterns
+- **Multi-domain tasks**: Use supervisor + multi-agent collaboration
+- **External API calls**: Use tool use pattern
+- **Quality-critical outputs**: Manually add reflection (or wait for v0.3.0)
+- **Complex planning**: Use evaluators + multi-step tasks (or wait for planning pattern in v0.3.0)
+- **Long-term context**: Use checkpointing (current) or memory/RAG (v0.3.0)
+
 ## Template Architecture
 
 Generators use Jinja2 templates parameterized from the goal spec. Key templates:
