@@ -11,6 +11,7 @@ from frmk.core.prompt_loader import get_prompt_loader
 from frmk.core.tool_registry import get_tool_registry
 from frmk.utils.logging import get_logger
 from frmk.utils.tracing import trace_span
+from frmk.utils.safety import create_safety_guard, AgentSafetyGuard
 
 
 class BaseAgent(ABC):
@@ -71,6 +72,10 @@ class BaseAgent(ABC):
         # Load prompt from Azure AI Foundry
         self.system_prompt = self._load_prompt()
 
+        # Initialize safety guard
+        agent_role = agent_config.get("description", agent_name.replace("_", " "))
+        self.safety_guard = create_safety_guard(goal_config, agent_name, agent_role)
+
         # Tracking
         self.loop_count = 0
         self.max_loop = agent_config.get("max_loop", 10)
@@ -128,6 +133,20 @@ class BaseAgent(ABC):
             self.logger.warning(f"Max iterations reached: {self.max_loop}")
             return self._max_loop_response(state)
 
+        # Safety: Validate input
+        user_message = self._extract_user_message(state)
+        if user_message:
+            is_safe, rejection_msg = self.safety_guard.validate_input(
+                user_message,
+                context=state.get("context")
+            )
+            if not is_safe:
+                self.logger.warning(f"Input rejected by safety guard: {rejection_msg}")
+                return self._safety_rejection_response(state, rejection_msg)
+
+            # Track conversation
+            self.safety_guard.add_to_history(user_message)
+
         # Build messages
         messages = self._build_messages(state)
 
@@ -136,6 +155,19 @@ class BaseAgent(ABC):
             response = await self.llm_with_tools.ainvoke(messages)
         else:
             response = await self.llm.ainvoke(messages)
+
+        # Safety: Validate output
+        if hasattr(response, 'content'):
+            is_safe, filtered_output = self.safety_guard.validate_output(response.content)
+            if not is_safe:
+                self.logger.warning("Output rejected by safety guard")
+                return self._safety_rejection_response(
+                    state,
+                    filtered_output or "I cannot provide that response."
+                )
+            # Use filtered output if modified
+            if filtered_output and filtered_output != response.content:
+                response.content = filtered_output
 
         # Process response
         return await self._process_response(state, response)
@@ -163,6 +195,10 @@ class BaseAgent(ABC):
         if "{{history}}" in prompt:
             history = self._format_history(state.get("messages", []))
             prompt = prompt.replace("{{history}}", history)
+
+        # Inject safety instructions
+        safety_instructions = self.safety_guard.get_safety_instructions()
+        prompt += f"\n{safety_instructions}"
 
         return prompt
 
@@ -197,6 +233,30 @@ class BaseAgent(ABC):
             ],
             "next": "END"
         }
+
+    def _safety_rejection_response(self, state: Dict[str, Any], message: str) -> Dict[str, Any]:
+        """Response when input/output rejected by safety guard"""
+        return {
+            "messages": state.get("messages", []) + [
+                AIMessage(content=message)
+            ],
+            "next": "END"
+        }
+
+    def _extract_user_message(self, state: Dict[str, Any]) -> Optional[str]:
+        """Extract the latest user message from state"""
+        messages = state.get("messages", [])
+        if not messages:
+            return None
+
+        # Find last HumanMessage
+        for msg in reversed(messages):
+            if isinstance(msg, HumanMessage):
+                return msg.content
+            elif isinstance(msg, tuple) and msg[0] == "user":
+                return msg[1]
+
+        return None
 
     def reset(self):
         """Reset agent state"""
