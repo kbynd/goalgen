@@ -47,14 +47,41 @@ Based on the configuration matrix, here's the complete goal spec JSON schema tha
 
   "tools": {
     "tool_name": {
-      "type": "http|internal|function",
+      "type": "sql|vectordb|http|websocket|function|internal",
+      "description": "string (tool description for LLM)",
       "spec": {
-        "url": "string (with placeholders)",
-        "method": "string (for http)",
-        "auth": "key|oauth|managed_identity",
-        "timeout": "number (seconds)",
-        "retry_attempts": "number",
-        "cache_ttl": "number (seconds, optional)"
+        // For SQL tools (type: "sql")
+        "connection_string": "string (with ${ENV_VAR} placeholders)",
+        "database_type": "azure_sql|postgresql|mysql|sqlite",
+        "max_results": "number (default: 100)",
+        "timeout": "number (seconds, default: 30)",
+        "read_only": "boolean (default: true, recommended)",
+
+        // For Vector DB tools (type: "vectordb")
+        "provider": "azure_ai_search|pinecone|weaviate|qdrant|chroma",
+        "endpoint": "string (with ${ENV_VAR} placeholders)",
+        "api_key": "string (with ${ENV_VAR} placeholders)",
+        "index_name": "string",
+        "embedding_model": "string (optional)",
+        "top_k": "number (default: 5)",
+
+        // For HTTP tools (type: "http")
+        "url": "string (with ${ENV_VAR} placeholders)",
+        "method": "GET|POST|PUT|DELETE|PATCH",
+        "auth": "none|api_key|bearer|oauth|managed_identity",
+        "headers": {"string": "string"},
+        "timeout": "number (seconds, default: 30)",
+        "retry_attempts": "number (default: 3)",
+        "cache_ttl": "number (seconds, optional)",
+
+        // For WebSocket tools (type: "websocket")
+        "url": "string (ws:// or wss://)",
+        "protocols": ["string"],
+        "reconnect": "boolean (default: true)",
+
+        // For Function tools (type: "function")
+        "function_name": "string",
+        "module_path": "string"
       }
     }
   },
